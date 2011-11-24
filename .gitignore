@@ -1,0 +1,7 @@
+.project
+.classpath
+.target
+.cache
+.scala_dependencies
+target/*
+
