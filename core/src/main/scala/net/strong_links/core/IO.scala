@@ -13,13 +13,11 @@ object IO {
     dirSeparator(0)
   }
 
-  def checkForExistingDirectories(file: File*) {
-    file.foreach { f =>
-      if (!f.exists)
-        Errors.fatal("Directory _ does not exist." << f.getCanonicalPath)
-      if (!f.isDirectory)
-        Errors.fatal("File _ is not a directory." << f.getCanonicalPath)
-    }
+  def checkForExistingDirectory(file: File) {
+    if (!file.exists)
+      Errors.fatal("Directory _ does not exist." << file.getCanonicalPath)
+    if (!file.isDirectory)
+      Errors.fatal("File _ is not a directory." << file.getCanonicalPath)
   }
 
   def copy(inFile: File, outFile: File, mightOverwrite: Boolean = true) {
