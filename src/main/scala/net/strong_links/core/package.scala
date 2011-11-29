@@ -4,6 +4,12 @@ import java.util.Locale
 
 package object core 
 {
+  type Loggers = {
+    def debug(msg: String): Unit
+    def info(msg: String): Unit
+    def warning(msg: String): Unit
+    def error(msg: String): Unit
+  }
 
   /**
    * This class is used to pass default implicit parameters to methods, in order to generate distinct internal
@@ -21,22 +27,18 @@ package object core
     ps.toString
   }
 
-  implicit def stringToStringErrorParameter(s: String) = {
-    new StringErrorParameter(s)
+  implicit def stringToStringLoggingParameter(s: String) = {
+    new StringLoggingParameter(s)
   }
 
-  implicit def pluggedStringToPluggedStringErrorParameter(ps: PluggedString) = {
-    new PluggedStringErrorParameter(ps)
+  implicit def pluggedStringToPluggedStringLoggingParameter(ps: PluggedString) = {
+    new PluggedStringLoggingParameter(ps)
   }
 
-  implicit def exceptionToExceptionErrorParameter(e: Exception) = {
-    new ExceptionErrorParameter(e)
+  implicit def exceptionToExceptionLoggingParameter(e: Exception) = {
+    new ExceptionLoggingParameter(e)
   }
 
-  implicit def charStreamToSPrintWriter(cs: CharStream) = {
-    cs.getPrintWriter
-  }
-  
   object userLocale extends ThreadLocalStack[Locale]
 
   implicit def stringToStringGeneralString(s: String): GeneralString = {

@@ -33,6 +33,10 @@ object CommandLine {
   object Parameter {
     def apply(name: String, help: String, action: (String)=> Unit) = new Parameter(name, help, action)
   }
+
+  def apply(programName: String, rules: List[Item], args: Array[String]) {
+    new CommandLine(programName, rules).run(args)
+  }
 }
 
 import CommandLine._

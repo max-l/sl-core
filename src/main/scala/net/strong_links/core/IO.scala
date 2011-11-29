@@ -6,11 +6,20 @@ import scala.io._
 object IO {
 
   val dirSeparator = System.getProperty("file.separator")
-  
+
   val dirSeparatorChar = {
     if (dirSeparator.length != 1)
       Errors.fatal("Invalid file.separator property; not length 1 but _." << dirSeparator.length)
     dirSeparator(0)
+  }
+
+  def checkForExistingDirectories(file: File*) {
+    file.foreach { f =>
+      if (!f.exists)
+        Errors.fatal("Directory _ does not exist." << f.getCanonicalPath)
+      if (!f.isDirectory)
+        Errors.fatal("File _ is not a directory." << f.getCanonicalPath)
+    }
   }
 
   def copy(inFile: File, outFile: File, mightOverwrite: Boolean = true) {
@@ -32,7 +41,7 @@ object IO {
     is.close
     os.close
   }
-  
+
   def scanDirectory(directory: File, filter: File => Boolean)(work: File => Unit): Unit = {
     if (!directory.exists)
       Errors.fatal("Directory _ does not exist." << directory)
@@ -40,15 +49,15 @@ object IO {
       Errors.fatal("File _ is not a directory." << directory)
     for (f <- directory.listFiles)
       if (f.isDirectory)
-        scanDirectory(f, filter){work}
+        scanDirectory(f, filter) { work }
       else if (filter(f))
         work(f)
   }
 
-  def scanDirectory(directory: File)(work: File => Unit): Unit = { 
-    scanDirectory(directory, (f) => true){work}
+  def scanDirectory(directory: File)(work: File => Unit): Unit = {
+    scanDirectory(directory, (f) => true) { work }
   }
-  
+
   def processDirectories(directory: File)(work: File => Unit): Unit = {
     if (!directory.exists)
       Errors.fatal("Directory _ does not exist." << directory)
@@ -57,7 +66,7 @@ object IO {
     for (f <- directory.listFiles)
       if (f.isDirectory) {
         work(f)
-        processDirectories(f){work}
+        processDirectories(f) { work }
       }
   }
 
@@ -70,18 +79,18 @@ object IO {
   def writeUtf8ToFile(fileName: String, contents: String) {
     writeUtf8ToFile(new File(fileName), contents)
   }
-  
+
   def createTemporaryFile: File = {
     File.createTempFile("tmp", ".tmp")
   }
-  
+
   def loadUtf8TextFile(f: File): String = {
     val source = Source.fromFile(f, "utf-8")
     val results = source.mkString
     source.close
     results
   }
-  
+
   def loadBinaryFile(f: File): Array[Byte] = {
     if (f.length > Int.MaxValue)
       Errors.fatal("File _ is too long." << f.getCanonicalPath)
@@ -101,7 +110,7 @@ object IO {
       Errors.fatal("MD5 has a length _ instead of 16." << md5.length)
     Util.encodeLongFromBytes(md5, 0) + Util.encodeLongFromBytes(md5, 8)
   }
-  
+
   def usingCharStream(f: (CharStream) => Unit): String = {
     val cs = new CharStream
     f(cs)
@@ -109,16 +118,16 @@ object IO {
   }
 
   def LeveledCharStream = new LeveledCharStream
-  
+
   def usingLeveledCharStream(f: (LeveledCharStream) => Unit): String = {
     val cs = LeveledCharStream
     f(cs)
     cs.close
   }
-  
+
   private def createSingleDirectory(directory: File) {
     if (directory.exists && !directory.isDirectory)
-        Errors.fatal("Existing path _ is not a directory as expected." << directory.getCanonicalPath)
+      Errors.fatal("Existing path _ is not a directory as expected." << directory.getCanonicalPath)
     if (!directory.exists)
       if (!directory.mkdir)
         Errors.fatal("Can't create directory _." << directory.getCanonicalPath)
@@ -136,15 +145,15 @@ object IO {
   }
 
   lazy val currentDirSuffix = IO.dirSeparator + "."
-  
-  def toCanonicalPath(fileName : String) = {
+
+  def toCanonicalPath(fileName: String) = {
     new File(fileName).getCanonicalPath
   }
-  
+
   def currentDirectory = {
     new File(".")
   }
-  
+
   def deleteFile(f: File, mightNotExist: Boolean = true) {
     val exists = f.exists
     if (!exists && !mightNotExist)
@@ -162,10 +171,10 @@ object IO {
     if (!from.renameTo(to))
       Errors.fatal("Can't rename file _ to _." << (from.getCanonicalPath, to.getCanonicalPath))
   }
-  
+
   def toDirectoryFile(directoryName: String, createIfDoesNotExist: Boolean = false) = {
     val d = new File(directoryName)
-    if (!d.exists) 
+    if (!d.exists)
       if (createIfDoesNotExist)
         createDirectory(d, false)
       else
@@ -178,50 +187,45 @@ object IO {
 
 class CharStream {
   private var active = true
-  private val sw = new java.io.StringWriter
-  protected val pw = new PrintWriter(sw)
+  val sb = new StringBuilder
   
-  def close = { 
+  def print(s: String) { sb.append(s) }
+  def println(s: String) { print(s); println }
+  def println { print("\n") }
+  def printIf(b: Boolean, s: String) = if (b) print(s)
+  def printlnIf(b: Boolean, s: String) = if (b) println(s)
+  
+  def close = {
     active = false
-    pw.flush
-    sw.toString
-  }
-  
-  def getPrintWriter = active match { 
-    case false => Errors.fatal("Stream is no longer active.")
-    case true => pw
-  }
-
-  def htmlPrint(s: String) {
-    pw.print(Convert.toHtml(s))
-  }
-
-  def htmlPrintln(s: String) {
-    pw.print(Convert.toHtml(s))
-    pw.println("<br>")
+    sb.toString
   }
 }
 
-class LeveledCharStream() extends CharStream {
+class LeveledCharStream extends CharStream {
+
   private var level = 0
-  private val defaultBullet = '.'
-  private val bullets = " >*-"
+  
   def increaseLevel { level += 1 }
+  
   def decreaseLevel { level -= 1; if (level < 0) Errors.fatal("Level dropped below 0.") }
-  def levelPrint(s: String) = {
-    if (level == 0)
-      pw.println
-    var bullet = if (level >= bullets.length) defaultBullet else bullets(level)
+  
+  override def println = super.println
+  
+  override def println(s: String) = {
     val margin = " " * (level * 2)
-    for (line <- s.split("\n")) {
-      if (level == 0)
-        pw.println("*** " + line + " ***")
-      else
-        pw.println(margin + bullet + " " + line)
-      bullet = ' '
-    }
-    if (level == 0)
-      pw.println
+    if (s.contains("\n"))
+      s.split("\n").foreach(line => super.println(margin + line))
+    else
+      super.println(margin + s)
+  }
+  
+  def block(s: String, start: String = "{", end: String = "}")(code: => Unit) {
+    println
+    println(s + " " + start)
+    increaseLevel
+    code
+    decreaseLevel
+    println(end)
   }
 }
 

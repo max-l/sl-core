@@ -1,5 +1,7 @@
 package net.strong_links.core
 
+class LexError extends Exception
+
 // Here are the various symbols/operators needed to process Scala files, Po files, and 
 // 'C' style expressions computing the plural form.
 object LexSymbol extends Enumeration {
@@ -9,7 +11,7 @@ object LexSymbol extends Enumeration {
       leftBracket, rightBracket, other, n, plus, minus, logicalNot, multiply, divide, modulo, 
       lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, equal, notEqual, logicalAnd, 
       logicalOr, questionMark, colon, unaryMinus, triadic, htmlStartComment, htmlEndComment, 
-      template, templateEnd, dot = Value
+      template, templateEnd, dot, preserveSpaces = Value
       
   implicit def SymbolToSymbolHelper(symbol: LexSymbol): LexSymbolHelper = {
     new LexSymbolHelper(symbol)
@@ -29,7 +31,7 @@ class LexSymbolHelper(symbol: LexSymbol) {
 }
 
 
-class BasicLexParser(pData: String) {
+class BasicLexParser(pData: String, loggers: Loggers) {
   protected val ETX = '\u2403'
   protected var lineNumber = 1
   protected val data = pData.replace("\r\n", "\n") + ETX
@@ -44,21 +46,25 @@ class BasicLexParser(pData: String) {
   protected def getFileName: Option[String] = None
   
   // Error/warning handling
-  protected def message (startLineNumber: Int, msg: ErrorParameter): Seq[ErrorParameter] = { 
-    getFileName match { 
+  protected def addSourceInfo (startLineNumber: Int, msg: LoggingParameter) = { 
+    val loggingParameters: Seq[LoggingParameter] = getFileName match { 
       case Some(fileName) => 
         Seq("At file _, line _" << (fileName, startLineNumber), msg)
       case None =>
         Seq("At line _" << startLineNumber, msg)
     }
+    loggingParameters
   }
     
-  protected def error(startLineNumber: Int, msg: ErrorParameter): Nothing = { 
-    Errors.fatal(message(startLineNumber, msg): _*)
+  protected def error(startLineNumber: Int, msg: LoggingParameter): Nothing = { 
+    val m = LoggingParameter.safeFormat(addSourceInfo(startLineNumber, msg): _*)
+    loggers.error(m)
+    throw new LexError
   }
 
-  protected def warning(startLineNumber: Int, msg: ErrorParameter) { 
-    Errors.warning(message(startLineNumber, msg): _*)
+  protected def warning(startLineNumber: Int, msg: LoggingParameter) { 
+    val m = LoggingParameter.format(addSourceInfo(startLineNumber, msg): _*)
+    loggers.warning(m)
   }
 
   // Character-level helpers.
@@ -145,6 +151,7 @@ class BasicLexParser(pData: String) {
       case "msgstr" => symbol = msgstr
       case "template" => symbol = template
       case "templateEnd" => symbol = templateEnd
+      case "preserveSpaces" => symbol = preserveSpaces
       case s => symbol = identifier; symbolValue = s
     }
   }
@@ -235,7 +242,7 @@ class BasicLexParser(pData: String) {
   }
 }
 
-class LexParser(pData: String) extends BasicLexParser(pData) {
+class LexParser(pData: String, loggers: Loggers) extends BasicLexParser(pData, loggers) {
 
   private def isVerbatimMarker = {
     currentChar == '"' && nextChar == '"' && nextNextChar == '"'

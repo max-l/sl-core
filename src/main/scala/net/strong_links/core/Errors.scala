@@ -1,12 +1,8 @@
 package net.strong_links.core
 
-import net.strong_links.core._
+class SystemException(msg: String) extends Exception(msg)
 
-case class SystemException(msg: String) extends Exception(msg)
-
-case class UserException(msg: I18n) extends Exception("User exception; please handle msg...")
-
-//case class UserException (msg: I18n) extends Exception
+class UserException(val msg: I18n) extends Exception("User exception")
 
 /**
  * Helper object to deal with errors
@@ -15,20 +11,15 @@ object Errors {
   /**
    * Signal a general fatal error .
    */
-  private def throwError(params: List[ErrorParameter]): Nothing = {
-    throw new SystemException(params.map(_.format).mkString("; "))
+  private def throwError(params: LoggingParameter*): Nothing = {
+    throw new SystemException(LoggingParameter.format(params: _*))
   }
   
-  def fatal(params: ErrorParameter*): Nothing = {
-    val list = params.toList
-    if (list.isEmpty)
-      throwError(List("No error parameters supplied." : ErrorParameter))
+  def fatal(params: LoggingParameter*): Nothing = {
+    if (params.isEmpty)
+      throwError("No logging parameters supplied.")
     else
-      throwError(list)
-  }
-
-  def warning(params: ErrorParameter*) {
-    Console.err.println("Warning: " + params.map(_.format).mkString("; "))
+      throwError(params: _*)
   }
 
   /**
@@ -55,18 +46,3 @@ object Errors {
   }
 }
 
-trait ErrorParameter {
-  def format: String  
-}
-
-class StringErrorParameter(s: String) extends ErrorParameter {
-  def format = s
-}
-
-class PluggedStringErrorParameter(ps: PluggedString) extends ErrorParameter {
-  def format = ps.format(failsafe = true, quoted = true)
-}
-
-class ExceptionErrorParameter(e: Exception) extends ErrorParameter {
-  def format = ("Catched exception: _" << e.getMessage).format(failsafe = true, quoted = true)
-}
