@@ -4,7 +4,7 @@ import java.util.Locale
 
 package object core 
 {
-  type Loggers = {
+  type Logger = {
     def debug(msg: String): Unit
     def info(msg: String): Unit
     def warning(msg: String): Unit

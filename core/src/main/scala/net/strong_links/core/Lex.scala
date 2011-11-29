@@ -31,7 +31,7 @@ class LexSymbolHelper(symbol: LexSymbol) {
 }
 
 
-class BasicLexParser(pData: String, loggers: Loggers) {
+class BasicLexParser(pData: String, logger: Logger) {
   protected val ETX = '\u2403'
   protected var lineNumber = 1
   protected val data = pData.replace("\r\n", "\n") + ETX
@@ -58,13 +58,13 @@ class BasicLexParser(pData: String, loggers: Loggers) {
     
   protected def error(startLineNumber: Int, msg: LoggingParameter): Nothing = { 
     val m = LoggingParameter.safeFormat(addSourceInfo(startLineNumber, msg): _*)
-    loggers.error(m)
+    logger.error(m)
     throw new LexError
   }
 
   protected def warning(startLineNumber: Int, msg: LoggingParameter) { 
     val m = LoggingParameter.format(addSourceInfo(startLineNumber, msg): _*)
-    loggers.warning(m)
+    logger.warning(m)
   }
 
   // Character-level helpers.
@@ -242,7 +242,7 @@ class BasicLexParser(pData: String, loggers: Loggers) {
   }
 }
 
-class LexParser(pData: String, loggers: Loggers) extends BasicLexParser(pData, loggers) {
+class LexParser(pData: String, logger: Logger) extends BasicLexParser(pData, logger) {
 
   private def isVerbatimMarker = {
     currentChar == '"' && nextChar == '"' && nextNextChar == '"'
