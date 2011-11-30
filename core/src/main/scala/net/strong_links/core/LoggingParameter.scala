@@ -6,13 +6,19 @@ trait LoggingParameter {
 }
 
 object LoggingParameter {
-  def format(params: LoggingParameter*) = params.map(_.format).mkString("; ")
-  def safeFormat(params: LoggingParameter*) = params.map(_.safeFormat).mkString("; ")
+  private def f(params: LoggingParameter*)(fmt: LoggingParameter => String) = params.map(fmt(_)).filter(!_.isEmpty).mkString("; ")
+  def format(params: LoggingParameter*) = f(params: _*)(_.format)
+  def safeFormat(params: LoggingParameter*) = f(params: _*)(_.safeFormat)
 }
 
 class StringLoggingParameter(s: String) extends LoggingParameter {
   def format = s
-  def safeFormat = s
+  def safeFormat = format
+}
+
+class OptionStringLoggingParameter(s: Option[String]) extends LoggingParameter {
+  def format = s match { case None => ""; case Some(x) => x }
+  def safeFormat = format
 }
 
 class PluggedStringLoggingParameter(ps: PluggedString) extends LoggingParameter {

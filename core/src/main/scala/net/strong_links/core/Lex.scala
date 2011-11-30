@@ -31,7 +31,7 @@ class LexSymbolHelper(symbol: LexSymbol) {
 }
 
 
-class BasicLexParser(pData: String, logger: Logger) {
+class BasicLexParser(pData: String, logger: Xlogger) {
   protected val ETX = '\u2403'
   protected var lineNumber = 1
   protected val data = pData.replace("\r\n", "\n") + ETX
@@ -242,7 +242,7 @@ class BasicLexParser(pData: String, logger: Logger) {
   }
 }
 
-class LexParser(pData: String, logger: Logger) extends BasicLexParser(pData, logger) {
+class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, logger) {
 
   private def isVerbatimMarker = {
     currentChar == '"' && nextChar == '"' && nextNextChar == '"'

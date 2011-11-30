@@ -31,6 +31,10 @@ package object core
     new StringLoggingParameter(s)
   }
 
+  implicit def optionStringToStringLoggingParameter(s: Option[String]) = {
+    new OptionStringLoggingParameter(s)
+  }
+
   implicit def pluggedStringToPluggedStringLoggingParameter(ps: PluggedString) = {
     new PluggedStringLoggingParameter(ps)
   }
