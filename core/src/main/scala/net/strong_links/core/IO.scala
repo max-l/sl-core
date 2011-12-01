@@ -32,9 +32,15 @@ object IO {
     var done = false
     var offset = 0
     while (!done) {
-      val n = is.read(b, offset, bufsiz)
-      os.write(b, offset, n)
-      done = n < bufsiz
+      try {
+        val n = is.read(b)
+        try {
+          if (n > 0)
+            os.write(b, 0, n)
+        } catch { case e: Exception => Errors.fatal("Writing _ bytes in _ at offset _" << (n, outFile.getCanonicalPath, offset), e) }
+        done = n < bufsiz
+        offset += n
+      } catch { case e: Exception => Errors.fatal("Reading _ bytes in _ at offset _" << (bufsiz, inFile.getCanonicalPath, offset), e) }
     }
     is.close
     os.close
@@ -45,11 +51,15 @@ object IO {
       Errors.fatal("Directory _ does not exist." << directory)
     if (!directory.isDirectory)
       Errors.fatal("File _ is not a directory." << directory)
-    for (f <- directory.listFiles)
+    val files = directory.listFiles
+    if (files == null)
+      Errors.fatal("Can't list files in directory _." << directory.getCanonicalPath)
+    for (f <- files) {
       if (f.isDirectory)
         scanDirectory(f, filter) { work }
       else if (filter(f))
         work(f)
+    }
   }
 
   def scanDirectory(directory: File)(work: File => Unit): Unit = {
@@ -186,13 +196,13 @@ object IO {
 class CharStream {
   private var active = true
   val sb = new StringBuilder
-  
+
   def print(s: String) { sb.append(s) }
   def println(s: String) { print(s); println }
   def println { print("\n") }
   def printIf(b: Boolean, s: String) = if (b) print(s)
   def printlnIf(b: Boolean, s: String) = if (b) println(s)
-  
+
   def close = {
     active = false
     sb.toString
@@ -202,21 +212,22 @@ class CharStream {
 class LeveledCharStream extends CharStream {
 
   private var level = 0
-  
+
   def increaseLevel { level += 1 }
-  
+
   def decreaseLevel { level -= 1; if (level < 0) Errors.fatal("Level dropped below 0.") }
-  
+
   override def println = super.println
-  
+
   override def println(s: String) = {
+    def normalize(s: String) = if (s.trim.isEmpty) "" else s
     val margin = " " * (level * 2)
     if (s.contains("\n"))
-      s.split("\n").foreach(line => super.println(margin + line))
+      s.split("\n").foreach(line => super.println(normalize(margin + line)))
     else
-      super.println(margin + s)
+      super.println(normalize(margin + s))
   }
-  
+
   def block(s: String, start: String = "{", end: String = "}")(code: => Unit) {
     println
     println(s + " " + start)

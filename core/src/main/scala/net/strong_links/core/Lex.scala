@@ -6,18 +6,13 @@ class LexError extends Exception
 // 'C' style expressions computing the plural form.
 object LexSymbol extends Enumeration {
   type LexSymbol = Value
-  val eof, identifier, string, verbatimString, scalaLineComments, poLineComments, blockComments, 
-      number, leftParenthesis, rightParenthesis, comma, msgid, msgctxt, msgid_plural, msgstr, 
-      leftBracket, rightBracket, other, n, plus, minus, logicalNot, multiply, divide, modulo, 
-      lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, equal, notEqual, logicalAnd, 
-      logicalOr, questionMark, colon, unaryMinus, triadic, htmlStartComment, htmlEndComment, 
-      template, templateEnd, dot, preserveSpaces = Value
-      
+  val eof, identifier, string, verbatimString, scalaLineComments, poLineComments, blockComments, number, leftParenthesis, rightParenthesis, comma, msgid, msgctxt, msgid_plural, msgstr, leftBracket, rightBracket, other, n, plus, minus, logicalNot, multiply, divide, modulo, lessThan, lessThanOrEqual, greaterThan, greaterThanOrEqual, equal, notEqual, logicalAnd, logicalOr, questionMark, colon, unaryMinus, triadic, htmlStartComment, htmlEndComment, template, templateEnd, dot, preserveSpaces = Value
+
   implicit def SymbolToSymbolHelper(symbol: LexSymbol): LexSymbolHelper = {
     new LexSymbolHelper(symbol)
   }
 }
-  
+
 import LexSymbol._
 
 class LexSymbolHelper(symbol: LexSymbol) {
@@ -30,7 +25,6 @@ class LexSymbolHelper(symbol: LexSymbol) {
   }
 }
 
-
 class BasicLexParser(pData: String, logger: Xlogger) {
   protected val ETX = '\u2403'
   protected var lineNumber = 1
@@ -41,28 +35,28 @@ class BasicLexParser(pData: String, logger: Xlogger) {
   protected var startLineNumber = 1
   protected var symbol = LexSymbol.other
   protected var symbolValue = ""
-  
+
   // This method can be overriden to provide the source file name, if any.
   protected def getFileName: Option[String] = None
-  
+
   // Error/warning handling
-  protected def addSourceInfo (startLineNumber: Int, msg: LoggingParameter) = { 
-    val loggingParameters: Seq[LoggingParameter] = getFileName match { 
-      case Some(fileName) => 
+  protected def addSourceInfo(startLineNumber: Int, msg: LoggingParameter) = {
+    val loggingParameters: Seq[LoggingParameter] = getFileName match {
+      case Some(fileName) =>
         Seq("At file _, line _" << (fileName, startLineNumber), msg)
       case None =>
         Seq("At line _" << startLineNumber, msg)
     }
     loggingParameters
   }
-    
-  protected def error(startLineNumber: Int, msg: LoggingParameter): Nothing = { 
+
+  protected def error(startLineNumber: Int, msg: LoggingParameter): Nothing = {
     val m = LoggingParameter.safeFormat(addSourceInfo(startLineNumber, msg): _*)
     logger.error(m)
     throw new LexError
   }
 
-  protected def warning(startLineNumber: Int, msg: LoggingParameter) { 
+  protected def warning(startLineNumber: Int, msg: LoggingParameter) {
     val m = LoggingParameter.format(addSourceInfo(startLineNumber, msg): _*)
     logger.warning(m)
   }
@@ -74,20 +68,20 @@ class BasicLexParser(pData: String, logger: Xlogger) {
     else
       data(pos - 1)
   }
-  
-  protected def nextChar = { 
+
+  protected def nextChar = {
     data(pos + 1)
   }
-  
-  protected def nextNextChar = { 
+
+  protected def nextNextChar = {
     data(pos + 2)
   }
-  
-  protected def nextNextNextChar = { 
+
+  protected def nextNextNextChar = {
     data(pos + 3)
   }
-  
-  protected def move { 
+
+  protected def move {
     if (currentChar != ETX) {
       if (currentChar == '\n')
         lineNumber += 1
@@ -97,7 +91,7 @@ class BasicLexParser(pData: String, logger: Xlogger) {
   }
 
   protected def move(n: Int) {
-    for(i <- 0 until n)
+    for (i <- 0 until n)
       move
   }
 
@@ -118,24 +112,24 @@ class BasicLexParser(pData: String, logger: Xlogger) {
     if (symbol != validChoice)
       error(startLineNumber, "Invalid symbol _; expected _." <<< (symbol, validChoice))
   }
-  
+
   // Some rules.
   protected def isIdentifierFirstCharacter: Boolean = {
     isIdentifierFirstCharacter(currentChar)
   }
-  
+
   protected def isIdentifierFirstCharacter(ch: Char): Boolean = {
     ch.isLetter || ch == '_' || ch == '$'
   }
-  
-  protected def isIdentifierCharacter: Boolean = { 
+
+  protected def isIdentifierCharacter: Boolean = {
     isIdentifierCharacter(currentChar)
   }
-  
-  protected def isIdentifierCharacter(ch: Char): Boolean = { 
+
+  protected def isIdentifierCharacter(ch: Char): Boolean = {
     isIdentifierFirstCharacter(ch) || ch.isDigit
   }
-  
+
   // Methods to get the various symbols.
   private def getIdentifier {
     sb.clear
@@ -155,7 +149,7 @@ class BasicLexParser(pData: String, logger: Xlogger) {
       case s => symbol = identifier; symbolValue = s
     }
   }
-  
+
   // Get a number, and ensure that it can be represented as an Int.
   private def getNumber {
     var v = 0L
@@ -175,27 +169,27 @@ class BasicLexParser(pData: String, logger: Xlogger) {
     val c = currentChar
     move
     symbol = c match {
-      case ETX => eof 
-      case ',' => comma 
-      case '['=> leftBracket  
-      case ']'=> rightBracket  
-      case '('=> leftParenthesis  
-      case ')'=> rightParenthesis  
-      case '+' => plus  
-      case '-' => minus  
-      case '*' => multiply  
-      case '/' => divide  
-      case '%' => modulo  
-      case '<' if (currentChar == '=') =>  move; lessThanOrEqual
-      case '<' => lessThan  
+      case ETX => eof
+      case ',' => comma
+      case '[' => leftBracket
+      case ']' => rightBracket
+      case '(' => leftParenthesis
+      case ')' => rightParenthesis
+      case '+' => plus
+      case '-' => minus
+      case '*' => multiply
+      case '/' => divide
+      case '%' => modulo
+      case '<' if (currentChar == '=') => move; lessThanOrEqual
+      case '<' => lessThan
       case '>' if (currentChar == '=') => move; greaterThanOrEqual
-      case '>' => greaterThan  
-      case '=' if (currentChar == '=') => move; equal 
+      case '>' => greaterThan
+      case '=' if (currentChar == '=') => move; equal
       case '!' if (currentChar == '=') => move; notEqual
-      case '!' => logicalNot  
+      case '!' => logicalNot
       case '&' if (currentChar == '&') => move; logicalAnd
       case '|' if (currentChar == '|') => move; logicalOr
-      case '?' => questionMark  
+      case '?' => questionMark
       case ':' => colon
       case '.' => dot
       case _ => symbolValue = currentChar.toString; other
@@ -216,20 +210,20 @@ class BasicLexParser(pData: String, logger: Xlogger) {
   def eatString: String = {
     val s = symbolValue
     skip(string)
-    s    
+    s
   }
 
   def getSymbolHere {
     if (isIdentifierFirstCharacter)
       getIdentifier
-    else if (currentChar.isDigit) 
+    else if (currentChar.isDigit)
       getNumber
     else if (!tryMoreSymbolHere)
       getMiscellaneous
   }
-  
+
   def tryMoreSymbolHere: Boolean = {
-    false 
+    false
   }
 
   def getSymbol {
@@ -248,26 +242,26 @@ class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, lo
     currentChar == '"' && nextChar == '"' && nextNextChar == '"'
   }
 
-  private def isScalaLineCommentStart = { 
+  private def isScalaLineCommentStart = {
     currentChar == '/' && nextChar == '/'
   }
-  
-  private def isPoLineCommentStart = { 
+
+  private def isPoLineCommentStart = {
     currentChar == '#' && previousChar == '\n'
   }
-  
-  private def isBlockCommentEnd = { 
+
+  private def isBlockCommentEnd = {
     currentChar == '*' && nextChar == '/'
   }
-  
+
   private def isBlockCommentStart = {
     currentChar == '/' && nextChar == '*'
   }
-  
+
   private def getVerbatimString {
     def escape(c: Char) = {
       c match {
-        case '\n'=> "\\n"
+        case '\n' => "\\n"
         case '\'' => "\\'"
         case '"' => "\\\""
         case '\\' => "\\\\"
@@ -282,11 +276,11 @@ class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, lo
     // \u0000 is actually understood. So we need to do a bit of gymnastic to
     // deal with this.
     val t = s.replace("\\\\", "\uFFFF").
-              replace("\\u", "\uFFFE").
-              replace("\uFFFF", "\\\\").
-              map(escape).
-              mkString.
-              replace("\uFFFE", "\\u")
+      replace("\\u", "\uFFFE").
+      replace("\uFFFF", "\\\\").
+      map(escape).
+      mkString.
+      replace("\uFFFE", "\\u")
     symbol = verbatimString
     symbolValue = t
   }
@@ -323,7 +317,7 @@ class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, lo
     move(2)
     var level = 1
     do {
-      eatUntil(isBlockCommentStart || isBlockCommentEnd) 
+      eatUntil(isBlockCommentStart || isBlockCommentEnd)
       if (isBlockCommentStart)
         level += 1
       else
@@ -339,17 +333,33 @@ class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, lo
       getVerbatimString
     else if (currentChar == '"')
       getString
-    else if (isScalaLineCommentStart) 
+    else if (isScalaLineCommentStart)
       getLineComments(scalaLineComments)
-    else if (isPoLineCommentStart) 
+    else if (isPoLineCommentStart)
       getLineComments(poLineComments)
-    else if (isBlockCommentStart) 
+    else if (isBlockCommentStart)
       getBlockComments
-    else if (currentChar.isDigit) 
+    else if (currentChar.isDigit)
       super.getSymbolHere
     else
       return false
-      
+
     return true
+  }
+}
+
+object Lex {
+  def normalizeName(name: String, context: => LoggingParameter) = {
+    def cleanUnderscores(s: String): String = if (!s.contains("__")) s else cleanUnderscores(s.replace("__", "_"))
+    val x = cleanUnderscores(Convert.generic(name.toLowerCase, None) {
+      case c if c.isLetterOrDigit => null
+      case _ => "_"
+    })
+    if (x.length == 0)
+      Errors.fatal("Can't generate a normalized name for _" << name, context)
+    if (x(0).isLetter)
+      x
+    else
+      "_" + x
   }
 }

@@ -6,13 +6,13 @@ object CommandLine {
 
   class Item(val name: String, val id: String, val help: String, action: (String) => Unit) {
     def run(s: String) = try action(s) catch {
-      case e: Exception => Errors.fatal("Invalid command line item _: _" << (name, e.getMessage))
+      case e: Exception => Errors.fatal("Invalid command line item _" << name, e)
     }
   }
 
   class Help(helpText: String) extends Item(helpText, "", "", s => {})
 
-  object Help{
+  object Help {
     def apply(helpText: String) = new Help(helpText)
   }
 
@@ -22,16 +22,16 @@ object CommandLine {
     def apply(name: String, help: String, action: => Unit) = new SimpleSwitch(name, help, action)
   }
 
-  class ValuedSwitch(name: String, id: String, help: String, action: (String)=> Unit) extends Item(name, id, help, action)
+  class ValuedSwitch(name: String, id: String, help: String, action: (String) => Unit) extends Item(name, id, help, action)
 
   object ValuedSwitch {
-    def apply(name: String, id: String, help: String, action: (String)=> Unit) = new ValuedSwitch(name, id, help, action)
+    def apply(name: String, id: String, help: String, action: (String) => Unit) = new ValuedSwitch(name, id, help, action)
   }
 
-  class Parameter(name: String, help: String, action: (String)=> Unit) extends Item(name, "", help, action)
+  class Parameter(name: String, help: String, action: (String) => Unit) extends Item(name, "", help, action)
 
   object Parameter {
-    def apply(name: String, help: String, action: (String)=> Unit) = new Parameter(name, help, action)
+    def apply(name: String, help: String, action: (String) => Unit) = new Parameter(name, help, action)
   }
 
   def apply(programName: String, rules: List[Item], args: Array[String]) {
@@ -42,19 +42,19 @@ object CommandLine {
 import CommandLine._
 
 class CommandLine(progName: String, rules: List[Item]) {
-  
+
   val ss = Util.filterOn[SimpleSwitch](rules)
   val vs = Util.filterOn[ValuedSwitch](rules)
   val par = Util.filterOn[Parameter](rules)
   val help = Util.filterOn[Help](rules)
-  
+
   def usage {
     def w(s: String) = Console.err.println(s)
     def f(fmt: String, i: Item, width: Int) {
       val k = width + 4
       val s = if (i.id != "") fmt << (i.name, i.id) else fmt << i.name
       val x = (s + (" " * k)).substring(0, k)
-      w("  _ _" << (x, Util.endDot(i.help)))
+      w("  _ _" << (x, i.help))
     }
     def fl(fmt: String, L: List[Item], width: Int) {
       for (i <- L)
@@ -92,9 +92,9 @@ class CommandLine(progName: String, rules: List[Item]) {
         def noValue = Errors.fatal("No value supplied to the switch _." << args(i))
         val name = args(i).substring(2)
         ss.find(_.name == name) match {
-          case Some(s) => 
-            s.run("") 
-          case None =>          
+          case Some(s) =>
+            s.run("")
+          case None =>
             vs.find(_.name == name) match {
               case Some(s) =>
                 if (i == args.length - 1)
@@ -102,7 +102,7 @@ class CommandLine(progName: String, rules: List[Item]) {
                 i += 1
                 if (args(i).startsWith("--"))
                   noValue
-                s.run(args(i)) 
+                s.run(args(i))
               case None =>
                 Errors.fatal("_ is not a valid switch." << args(i))
             }
@@ -117,7 +117,7 @@ class CommandLine(progName: String, rules: List[Item]) {
     if (argsLeft.length != par.length)
       Errors.fatal("Invalid number of arguments; _ were provided, _ were expected." << (argsLeft.length, par.length))
     for (i <- 0 until argsLeft.length)
-      par(i).run(argsLeft(i)) 
+      par(i).run(argsLeft(i))
   }
 
   def run(args: Array[String]) {
@@ -127,9 +127,7 @@ class CommandLine(progName: String, rules: List[Item]) {
     }
     try mightRun(args) catch {
       case e: Exception =>
-        val x = Util.endDot(e.getMessage)
-        val msg = ("Command line error: _ Use --help for help." << x).format(true, false)
-        Errors.fatal(msg)  
+        Errors.fatal("Command line error", e.getMessage, "Use --help for help.")
     }
   }
 }
