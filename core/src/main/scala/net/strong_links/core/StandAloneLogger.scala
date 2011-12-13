@@ -12,3 +12,4 @@ class StandAloneLogger {
 
   def error(msg: String) = emit("Error", msg)
 }
+

@@ -17,7 +17,7 @@ object I18nUtil {
   }
 
   def classNameFor(packageName: String, languageKey: String) = {
-    packageName.split('.').map(_.capitalize).mkString + "_" + languageKey
+    Util.split(packageName, ".").map(_.capitalize).mkString + "_" + languageKey
   }
 
   private class localizationInfo(pLanguage: String, pCountry: String, pParentLanguage: String, val originalData: String)
@@ -43,11 +43,12 @@ object I18nUtil {
 
   def makeLocalizationsFrom(codeLocalization: I18nCodeLocalization, p: String) = {
     val partialList =
-      (if (p.contains(",")) p.split(',').toList else List(p)).map(_.trim).filter(!_.isEmpty).map { s =>
-        def ctx: LoggingParameter = "Invalid language/variant specification _" << s
-        val (id, parentLanguage) = if (s.contains(":")) Util.splitTwoCh(s, ':', Some(() => ctx)) else (s, "")
-        val (language, country) = if (id.contains("_")) Util.splitTwoCh(id, '_', Some(() => ctx)) else (id, "")
-        new localizationInfo(language, country, parentLanguage, s)
+      Util.split(p, ",").map(_.trim).filter(!_.isEmpty).map { s =>
+        Errors.context("Invalid language/variant specification _" << s) {
+          val (id, parentLanguage) = if (s.contains(":")) Util.splitTwo(s, ':') else (s, "")
+          val (language, country) = if (id.contains("_")) Util.splitTwo(id, '_') else (id, "")
+          new localizationInfo(language, country, parentLanguage, s)
+        }
       }
     val fullList = new localizationInfo(codeLocalization.language, "", "", "") +: partialList
     val list = fullList.sortWith(_ < _)

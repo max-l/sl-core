@@ -30,6 +30,14 @@ class PluggedStringLoggingParameter(ps: PluggedString) extends LoggingParameter 
 }
 
 class ExceptionLoggingParameter(e: Exception) extends LoggingParameter {
-  def format = e.getMessage match { case null => e.getClass.getName + " exception"; case m => m }
+  private def message = if (e.getMessage == null) "(No message)" else e.getMessage
+  def format = e match {
+    case _: StrongLinksException =>
+      message
+    case _: Exception =>
+      val dumpBody = Util.split(e.getStackTraceString.trim).map("* " + _)
+      val niceDump = "(Original stack trace start)" +: dumpBody :+ "(Original stack trace end)"
+      OS.getFinalClassName(e) + " exception: " + message + "\n" + niceDump.mkString("\n")
+  }
   def safeFormat = format
 }

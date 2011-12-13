@@ -8,6 +8,7 @@ object Buildz extends Build {
   def buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "net.strong_links",
     version := "0.2",
+    logLevel in Global := Level.Warn,
     scalaVersion := "2.9.1"
   )
     
