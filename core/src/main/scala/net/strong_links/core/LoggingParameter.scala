@@ -20,7 +20,7 @@ class StringLoggingParameter(s: String) extends LoggingParameter {
 }
 
 class OptionStringLoggingParameter(s: Option[String]) extends LoggingParameter {
-  def format = s match { case None => ""; case Some(x) => x }
+  def format = s match { case null => "null" case None => ""; case Some(x) => x }
   def safeFormat = format
 }
 

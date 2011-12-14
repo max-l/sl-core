@@ -25,7 +25,9 @@ object Buildz extends Build {
   lazy val core = Project(
     id = "core",
     base = file("core"),
-    settings = buildSettings 
+    settings = buildSettings ++Seq(
+      libraryDependencies += "org.slf4j" % "slf4j-api" % "1.6.1"
+    )
   )
 
   lazy val root = Project(
