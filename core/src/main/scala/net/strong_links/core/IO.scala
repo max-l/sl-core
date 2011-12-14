@@ -113,7 +113,7 @@ object IO {
   }
 
   def fileUuid(file: File) = {
-    val md5 = Util.newMd5Function(IO.loadBinaryFile(file))
+    val md5 = Util.md5(IO.loadBinaryFile(file))
     if (md5.length != 16)
       Errors.fatal("MD5 has a length _ instead of 16." << md5.length)
     Util.encodeLongFromBytes(md5, 0) + Util.encodeLongFromBytes(md5, 8)
@@ -146,7 +146,7 @@ object IO {
     if (exists && !mightAlreadyExist)
       Errors.fatal("Directory _ already exists." << directory.getCanonicalPath)
     if (!exists) {
-      val segments = directory.getCanonicalPath.split(IO.dirSeparator(0))
+      val segments = Util.split(directory.getCanonicalPath, IO.dirSeparator)
       for (n <- 1 to segments.length)
         createSingleDirectory(new File(segments.take(n).mkString(IO.dirSeparator)))
     }
@@ -180,16 +180,14 @@ object IO {
       Errors.fatal("Can't rename file _ to _." << (from.getCanonicalPath, to.getCanonicalPath))
   }
 
-  def toDirectoryFile(directoryName: String, createIfDoesNotExist: Boolean = false) = {
-    val d = new File(directoryName)
-    if (!d.exists)
+  def checkDirectory(directory: File, createIfDoesNotExist: Boolean = false) {
+    if (!directory.exists)
       if (createIfDoesNotExist)
-        createDirectory(d, false)
+        createDirectory(directory, false)
       else
-        Errors.fatal("Directory _ does not exist." << directoryName)
-    if (!d.isDirectory)
-      Errors.fatal("File _ is not a directory." << directoryName)
-    d
+        Errors.fatal("Directory _ does not exist." << directory.getCanonicalPath)
+    if (!directory.isDirectory)
+      Errors.fatal("File _ is not a directory." << directory.getCanonicalPath)
   }
 }
 
@@ -222,10 +220,7 @@ class LeveledCharStream extends CharStream {
   override def println(s: String) = {
     def normalize(s: String) = if (s.trim.isEmpty) "" else s
     val margin = " " * (level * 2)
-    if (s.contains("\n"))
-      s.split("\n").foreach(line => super.println(normalize(margin + line)))
-    else
-      super.println(normalize(margin + s))
+    Util.split(s).foreach(line => super.println(normalize(margin + line)))
   }
 
   def block(s: String, start: String = "{", end: String = "}")(code: => Unit) {

@@ -349,14 +349,14 @@ class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, lo
 }
 
 object Lex {
-  def normalizeName(name: String, context: => LoggingParameter) = {
+  def normalizeName(name: String) = {
     def cleanUnderscores(s: String): String = if (!s.contains("__")) s else cleanUnderscores(s.replace("__", "_"))
     val x = cleanUnderscores(Convert.generic(name.toLowerCase, None) {
       case c if c.isLetterOrDigit => null
       case _ => "_"
     })
     if (x.length == 0)
-      Errors.fatal("Can't generate a normalized name for _" << name, context)
+      Errors.fatal("Can't generate a normalized name for _" << name)
     if (x(0).isLetter)
       x
     else

@@ -1,9 +1,19 @@
 package net.strong_links.core
 
+import java.io.File
+
 object PluggedArguments {
-  
+
   private val quote = '\''
-  
+
+  private def decorateFile(f: File, sb: StringBuilder, quoted: Boolean) {
+    if (quoted)
+      sb.append(quote)
+    sb.append("File " + f.getCanonicalPath)
+    if (quoted)
+      sb.append(quote)
+  }
+
   private def decorateString(s: String, sb: StringBuilder, quoted: Boolean) {
     if (quoted)
       sb.append(quote)
@@ -11,7 +21,7 @@ object PluggedArguments {
     if (quoted)
       sb.append(quote)
   }
-  
+
   private def decorateTraversable(t: Traversable[Any], sb: StringBuilder, quoted: Boolean, crashIfException: Boolean) {
     sb.append('(')
     var sep = ""
@@ -26,12 +36,13 @@ object PluggedArguments {
   private def decorateAny(x: Any, sb: StringBuilder, quoted: Boolean, crashIfException: Boolean) {
     x match {
       case null => sb.append("null")
+      case f: File => decorateFile(f, sb, quoted)
       case s: String => decorateString(s, sb, quoted)
       case t: Traversable[_] => decorateTraversable(t, sb, quoted, crashIfException)
-      case _ =>  
+      case _ =>
         if (x.isInstanceOf[Array[_]])
           decorateTraversable(x.asInstanceOf[Array[_]], sb, quoted, crashIfException)
-        else 
+        else
           try
             decorateString(x.toString, sb, quoted)
           catch {
@@ -40,37 +51,36 @@ object PluggedArguments {
           }
     }
   }
-  
+
   private def safeArg(x: Any): String = {
     val sb = new StringBuilder
     decorateAny(x, sb, true, false)
     sb.toString
   }
-  
-  private def format(s: String, args: Array[Any], sb: StringBuilder, quoted: Boolean) {    
+
+  private def format(s: String, args: Array[Any], sb: StringBuilder, quoted: Boolean) {
     var i = 0
     var n = args.length
     if (n > 32)
       throw new Exception("Too many arguments;_ were provided while the maximum is 32" << n)
-    var argsNotUsedBitmap = (1 << n) - 1 
+    var argsNotUsedBitmap = (1 << n) - 1
     var previousArgNo = -1
     val lastIndex = s.length - 1
-    while (i <= lastIndex) { 
+    while (i <= lastIndex) {
       val current = s(i)
       if (current == '_') {
-        if((i != lastIndex) && (s(i+1) == '_'))
-        {
+        if ((i != lastIndex) && (s(i + 1) == '_')) {
           sb.append('_')
           i += 1
         } else {
-          val argNo =  
-            if ((i != lastIndex) && s(i+1).isDigit) {
+          val argNo =
+            if ((i != lastIndex) && s(i + 1).isDigit) {
               var k = 0
               // Argument number specified in the string, use it.
               do {
                 i += 1
-                k = (k * 10) + (s(i) - '0') 
-              } while ((i != lastIndex) && s(i+1).isDigit)
+                k = (k * 10) + (s(i) - '0')
+              } while ((i != lastIndex) && s(i + 1).isDigit)
               // Argument 0 is invalid since we are 1-based externally.
               if (k == 0)
                 throw new Exception("Invalid argument '_0' specified (arguments are one-based, not zero-based)")
@@ -80,11 +90,11 @@ object PluggedArguments {
               previousArgNo + 1
             }
           // Mark this argument as used by clearing its bit in the bitmap.
-          argsNotUsedBitmap &= ~(1 << argNo)           
+          argsNotUsedBitmap &= ~(1 << argNo)
 
           // Make sure we do not overflow.
           if (argNo >= n)
-            throw new Exception("Missing argument '___'" << argNo + 1 )
+            throw new Exception("Missing argument '___'" << argNo + 1)
 
           // Got it!
           decorateAny(args(argNo), sb, quoted, true)
@@ -106,24 +116,24 @@ object PluggedArguments {
     }
   }
 
-  def format(s: String, args: Option[Seq[Any]], failsafe: Boolean, quoted: Boolean): String = {  
+  def format(s: String, args: Option[Seq[Any]], failsafe: Boolean, quoted: Boolean): String = {
     args match {
-      case None => 
+      case None =>
         s
       case Some(seq) =>
         val sb = new StringBuilder
         try {
           format(s, seq.toArray, sb, quoted)
           sb.toString
-        } catch { 
+        } catch {
           case e: Exception =>
-          val msg0 = "Error _ while formating; Format = _; " <<< (e.getMessage, s)
-          val msg1 = "arguments = _." << safeArg(seq)
-          val msg = msg0 + msg1
-          if (failsafe)
-            msg
-          else
-            Errors.fatal(msg)
+            val msg0 = "Error _ while formating; Format = _; " <<< (e.getMessage, s)
+            val msg1 = "arguments = _." << safeArg(seq)
+            val msg = msg0 + msg1
+            if (failsafe)
+              msg
+            else
+              Errors.fatal(msg)
         }
     }
   }

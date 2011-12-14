@@ -137,15 +137,20 @@ object Util {
   def filterOn[T](list: List[_])(implicit m: Manifest[T]) =
     list.filter(m.erasure.isInstance(_)).map(_.asInstanceOf[T])
 
-  def newMd5Function = new {
-    val md5 = MessageDigest.getInstance("MD5")
+  def md5 = new {
+    private val f = MessageDigest.getInstance("MD5")
 
     def apply(b: Array[Byte]*) = {
-      b.foreach(md5.update(_))
-      val result = md5.digest
-      md5.reset
+      b.foreach(f.update(_))
+      val result = f.digest
+      f.reset
       result
     }
+  }
+
+  def strongHash(s: String) = {
+    val bytes = md5(s.getBytes)
+    toLong(bytes, 0)
   }
 
   def checkDuplicates[T](I: Iterable[T])(errorCode: T => Unit) {
@@ -157,24 +162,35 @@ object Util {
     }
   }
 
-  private def genericSplitTwo(s: String, delimiter: Char, originalDelimiter: => String, ctx: Option[() => LoggingParameter]) = {
-    def error(params: LoggingParameter*) = {
-      val errorArgs = (("Split error on input string _" <<< s): LoggingParameter) +: ctx.toList.map(_()) ::: params.toList
-      Errors.fatal(errorArgs: _*)
+  // Warning: the Java split function using a string delimiter uses a regex delimiter, so 
+  // here we bypass this weird behavior by always splitting on a single char, here \uFFFF.
+  def split(s: String, del: String): List[String] = {
+    // Note: the original string is returned when nothing is actually replaced.
+    val x = s.replace(del, "\uFFFF")
+    if (x eq s)
+      List(s)
+    else
+      x.split('\uFFFF').toList
+  }
+
+  def split(s: String, del: Char = '\n'): List[String] = split(s, del.toString)
+
+  private def genericSplitTwo(list: List[String], originalString: String, originalDelimiter: String) = {
+    Errors.context("Split error on input string _" << originalString) {
+      if (list.length == 1)
+        Errors.fatal("Delimiter _ not found." << originalDelimiter)
+      if (list.length != 2)
+        Errors.fatal("Wrong number of segments", "Found _, expected 2" << list.length)
+      (list(0), list(1))
     }
-    if (!s.contains(delimiter))
-      error("Delimiter _ not found." << originalDelimiter)
-    val x = s.split(delimiter)
-    if (x.length != 2)
-      error("Wrong number of segments", "Found _, expected 2" << x.length)
-    (x(0), x(1))
   }
 
-  // Warning: the Java split function using a string delimiter uses a regex delimiter, so bypass this weird behavior.
-  def splitTwoStr(s: String, delimiter: String, ctx: Option[() => LoggingParameter] = None) =
-    genericSplitTwo(s.replace(delimiter, "\uFFFF"), '\uFFFF', delimiter, ctx)
+  def splitTwo(s: String, delimiter: String) =
+    genericSplitTwo(split(s, delimiter), delimiter, s)
 
-  def splitTwoCh(s: String, delimiter: Char, ctx: Option[() => LoggingParameter] = None) = {
-    genericSplitTwo(s, delimiter, delimiter.toString, ctx)
+  def splitTwo(s: String, delimiter: Char) = {
+    val del = delimiter.toString
+    genericSplitTwo(split(s, del), del, s)
   }
+
 }

@@ -2,8 +2,7 @@ package net.strong_links
 
 import java.util.Locale
 
-package object core 
-{
+package object core {
   type Logger = {
     def debug(msg: String): Unit
     def info(msg: String): Unit
@@ -16,13 +15,19 @@ package object core
    * JVM method names. This is useful when we need to declare two methods with logically the same signature,
    * but with different constraints.
    */
-  class DummyParam
-  implicit def someDummyParam = new DummyParam
+  class DummyParam0
+  implicit def someDummyParam0 = new DummyParam0
+
+  class DummyParam1
+  implicit def someDummyParam1 = new DummyParam1
+
+  class DummyParam2
+  implicit def someDummyParam2 = new DummyParam2
 
   implicit def stringToPluggableString(s: String) = {
     new PluggableString(s)
   }
-  
+
   implicit def pluggedStringToString(ps: PluggedString) = {
     ps.toString
   }
