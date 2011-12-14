@@ -1,6 +1,6 @@
 package net.strong_links.core
 
-import org.slf4j.{LoggerFactory,Logger => SLF4JLogger}
+import org.slf4j.{ LoggerFactory, Logger => SLF4JLogger }
 
 object Logging {
 
@@ -15,10 +15,10 @@ object Logging {
     def debug(s: String): Unit
   }
 
-  private object Overrider extends ThreadLocalStack[GenericLogger]  
+  private val overrider = new ThreadLocalStack[GenericLogger]
 
-  def using[R](logger: GenericLogger) (code: => R): R =
-    Overrider.using(logger)(code)
+  def using[R](logger: GenericLogger)(code: => R): R =
+    overrider.using(logger)(code)
 }
 
 trait Logging {
@@ -26,28 +26,31 @@ trait Logging {
   private lazy val slf4j = LoggerFactory.getLogger(this.getClass)
 
   private def actualLogger = {
-    val l = Logging.Overrider.unsafeGet
-    if(l != null) l
-    else slf4j
+    val l = Logging.overrider.unsafeGet
+    if (l != null) l else slf4j
   }
 
   def error(args: LoggingParameter*) {
     val l = actualLogger
-    if(l.isErrorEnabled) args.foreach(a => l.error(a.safeFormat))
+    if (l.isErrorEnabled)
+      l.error(LoggingParameter.safeFormat(args: _*))
   }
-  
+
   def debug(args: LoggingParameter*) {
     val l = actualLogger
-    if(l.isDebugEnabled) args.foreach(a => l.debug(a.safeFormat))
+    if (l.isDebugEnabled)
+      l.debug(LoggingParameter.safeFormat(args: _*))
   }
-  
+
   def info(args: LoggingParameter*) {
     val l = actualLogger
-    if(l.isInfoEnabled) args.foreach(a => l.info(a.safeFormat))
+    if (l.isInfoEnabled) 
+      l.info(LoggingParameter.safeFormat(args: _*))
   }
 
   def warn(args: LoggingParameter*) {
     val l = actualLogger
-    if(l.isWarnEnabled) args.foreach(a => l.warn(a.safeFormat))
+    if (l.isWarnEnabled) 
+      l.warn(LoggingParameter.safeFormat(args: _*))
   }
 }
