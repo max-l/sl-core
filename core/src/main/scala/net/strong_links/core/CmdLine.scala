@@ -3,6 +3,7 @@ package net.strong_links.core
 import java.io.File
 
 trait CmdLineTrait {
+
   trait ValueParser[T] {
     def parse(s: String): T
   }
@@ -10,6 +11,7 @@ trait CmdLineTrait {
   def toFile(s: String) = new File(OS.translatePath(s))
   def toInt(s: String) = s.toInt
   def toFloat(s: String) = s.toFloat
+  def toDouble(s: String) = s.toDouble
 
   def handleNull[T](s: String, value: => T) = s match { case null => None; case _ => Some(value) }
 
@@ -45,6 +47,14 @@ trait CmdLineTrait {
     def parse(s: String) = handleNull(s, toFloat(s))
   }
 
+  trait DoubleParser extends ValueParser[Double] {
+    def parse(s: String) = toDouble(s)
+  }
+
+  trait OptionDoubleParser extends ValueParser[Option[Double]] {
+    def parse(s: String) = handleNull(s, toDouble(s))
+  }
+
   trait ItemNature {
     def isParameter: Boolean
     def isBooleanSwitch: Boolean
@@ -59,6 +69,7 @@ trait CmdLineTrait {
     val key = pKey.toLowerCase
     def parse(s: String): T
     def nokey = "no" + key
+    def displayLength = pKey.length
   }
 
   abstract class GenericSwitch[T](pKey: String, help: String) extends Item[T](pKey, help) with ItemNature {
@@ -68,6 +79,7 @@ trait CmdLineTrait {
 
   abstract class VSwitch[T](pKey: String, val valueLabel: String, help: String) extends GenericSwitch[T](pKey, help) {
     def isBooleanSwitch = false
+    override def displayLength = pKey.length + valueLabel.length
   }
 
   class Switch(pKey: String, override val help: String) extends GenericSwitch[Boolean](pKey, help) {
@@ -80,6 +92,7 @@ trait CmdLineTrait {
   def fileSwitch(key: String, valueLabel: String, help: String) = new VSwitch[Option[File]](key, valueLabel, help) with OptionFileParser
   def intSwitch(key: String, valueLabel: String, help: String) = new VSwitch[Option[Int]](key, valueLabel, help) with OptionIntParser
   def floatSwitch(key: String, valueLabel: String, help: String) = new VSwitch[Option[Float]](key, valueLabel, help) with OptionFloatParser
+  def doubleSwitch(key: String, valueLabel: String, help: String) = new VSwitch[Option[Double]](key, valueLabel, help) with OptionDoubleParser
 
   abstract class VParameter[T](valueLabel: String, help: String) extends Item[T](valueLabel, help) with ItemNature {
     def isParameter = true
@@ -91,11 +104,12 @@ trait CmdLineTrait {
   def fileParameter(key: String, help: String) = new VParameter[File](key, help) with FileParser
   def intParameter(key: String, help: String) = new VParameter[Int](key, help) with IntParser
   def floatParameter(key: String, help: String) = new VParameter[Float](key, help) with FloatParser
+  def doubleParameter(key: String, help: String) = new VParameter[Double](key, help) with DoubleParser
 
   def apply(callingObject: Object, args: Array[String], help: List[Help] = Nil) =
     new CmdLineClass(callingObject, args, help)
 
-  class CmdLineClass(callingObject: Object, args: Array[String], help: List[Help] = Nil) {
+  class CmdLineClass(callingObject: Object, args: Array[String], help: List[Help] = Nil) extends Logging {
 
     private val map = scala.collection.mutable.Map[Item[_], String]()
 
@@ -106,55 +120,52 @@ trait CmdLineTrait {
     private implicit def itemToItemWrapper[T](i: Item[T]) = new ItemWrapper(i)
 
     private def setMap[T](i: Item[T], s: String) {
-      Errors.context("Element _" << i.name) {
+      Errors.trap("Element _" << i.name) {
         map(i) = s
         i.v
       }
     }
 
-    def run[A1](p1: Item[A1])(code: (Xlogger, A1) => Unit) = {
-      xeq(List(p1)) { logger => code(logger, p1.v) }
+    def run[A1](p1: Item[A1])(code: (A1) => Unit) = {
+      xeq(List(p1)) { code(p1.v) }
     }
 
-    def run[A1, A2](p1: Item[A1], p2: Item[A2])(code: (Xlogger, A1, A2) => Unit) = {
-      xeq(List(p1, p2)) { logger => code(logger, p1.v, p2.v) }
+    def run[A1, A2](p1: Item[A1], p2: Item[A2])(code: (A1, A2) => Unit) = {
+      xeq(List(p1, p2)) { code(p1.v, p2.v) }
     }
 
-    def run[A1, A2, A3](p1: Item[A1], p2: Item[A2], p3: Item[A3])(code: (Xlogger, A1, A2, A3) => Unit) = {
-      xeq(List(p1, p2, p3)) { logger => code(logger, p1.v, p2.v, p3.v) }
+    def run[A1, A2, A3](p1: Item[A1], p2: Item[A2], p3: Item[A3])(code: (A1, A2, A3) => Unit) = {
+      xeq(List(p1, p2, p3)) { code(p1.v, p2.v, p3.v) }
     }
 
-    def run[A1, A2, A3, A4](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4])(code: (Xlogger, A1, A2, A3, A4) => Unit) = {
-      xeq(List(p1, p2, p3, p4)) { logger => code(logger, p1.v, p2.v, p3.v, p4.v) }
+    def run[A1, A2, A3, A4](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4])(code: (A1, A2, A3, A4) => Unit) = {
+      xeq(List(p1, p2, p3, p4)) { code(p1.v, p2.v, p3.v, p4.v) }
     }
 
-    def run[A1, A2, A3, A4, A5](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4], p5: Item[A5])(code: (Xlogger, A1, A2, A3, A4, A5) => Unit) = {
-      xeq(List(p1, p2, p3, p4, p5)) { logger => code(logger, p1.v, p2.v, p3.v, p4.v, p5.v) }
+    def run[A1, A2, A3, A4, A5](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4], p5: Item[A5])(code: (A1, A2, A3, A4, A5) => Unit) = {
+      xeq(List(p1, p2, p3, p4, p5)) { code(p1.v, p2.v, p3.v, p4.v, p5.v) }
     }
 
-    def run[A1, A2, A3, A4, A5, A6](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4], p5: Item[A5], p6: Item[A6])(code: (Xlogger, A1, A2, A3, A4, A5, A6) => Unit) = {
-      xeq(List(p1, p2, p3, p4, p5, p6)) { logger => code(logger, p1.v, p2.v, p3.v, p4.v, p5.v, p6.v) }
+    def run[A1, A2, A3, A4, A5, A6](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4], p5: Item[A5], p6: Item[A6])(code: (A1, A2, A3, A4, A5, A6) => Unit) = {
+      xeq(List(p1, p2, p3, p4, p5, p6)) { code(p1.v, p2.v, p3.v, p4.v, p5.v, p6.v) }
     }
 
-    def xeq[R](items: List[Item[_]])(code: Xlogger => R): R = {
-
+    def xeq(items: List[Item[_]])(code: => Unit): Unit = {
       val progName = OS.getFinalClassName(callingObject)
-      val logger = new Xlogger(new StandAloneLogger)
-      var stackTrace = false
+      val logConfigSwitch = switch("log-config", "Log the configuration used.")
+      val stackTraceSwitch = switch("stack-trace", "Show stack trace upon error.")
+      val predefinedSwitches = List(logConfigSwitch, stackTraceSwitch)
+      val allItems = (items ::: predefinedSwitches).sortWith(_.key < _.key)
+      val par = Util.filterOn[VParameter[_]](allItems)
+      val ss = Util.filterOn[Switch](allItems)
+      val vs = Util.filterOn[VSwitch[_]](allItems)
 
-      val logConfigSwitch = switch("logConfig", "Log the configuration used.")
-      val debugSwitch = switch("debug", "Activate debug mode.")
-      val stackTraceSwitch = switch("stackTrace", "Show stack trace upon error.")
-      val predefinedSwitches: List[Item[_]] = List(logConfigSwitch, debugSwitch, stackTraceSwitch)
-      val allItems = items ::: predefinedSwitches
-      val (par, switches) = (allItems).partition(_.isParameter)
-      val (ss, vs) = switches.sortWith(_.key < _.key).partition(_.isBooleanSwitch)
+      var stackTrace = false
 
       def usage {
         def w(s: String) = Console.err.println(s)
-        def maxLength(i: Item[_]) = i match { case vs: VSwitch[_] => vs.key.length + vs.valueLabel.length; case _ => i.key.length }
         def f(fmt: String, i: Item[_], width: Int) {
-          val k = width + 4
+          val k = width + 6
           val s = i match { case vs: VSwitch[_] => fmt << (vs.key, vs.valueLabel); case _ => fmt << i.key }
           val x = (s + (" " * k)).substring(0, k)
           w("  _ _" << (x, i.help))
@@ -165,7 +176,7 @@ trait CmdLineTrait {
         }
         w("Usage:")
         w("  _ _" << (progName, par.map("<_>" << _.key).mkString(" ")))
-        val max = (0 /: (ss ::: vs ::: par))((a, b) => scala.math.max(a, maxLength(b)))
+        val max = (0 /: allItems)(_ max _.displayLength)
         w("")
         w("Parameters:")
         fl("<_>", par, max)
@@ -206,11 +217,11 @@ trait CmdLineTrait {
           Errors.fatal("_ is not a valid switch." << key)
       }
 
-      def logConfig(logger: Xlogger) {
+      def logConfig {
         def show(title: String, list: List[Item[_]]) {
           if (!list.isEmpty) {
-            logger.info("Run-time " + title)
-            list.foreach(p => { val x = ("  _ = " << p.name) + ("_" <<< p.v); logger.info(x) })
+            logInfo("Run-time " + title)
+            list.foreach(p => { val x = ("  _ = " << p.name) + ("_" <<< p.v); logInfo(x) })
           }
         }
         show("parameters", par)
@@ -240,31 +251,27 @@ trait CmdLineTrait {
           setMap(par(i), ab(i))
       }
 
-      try {
+      def run {
         if (args.length == 1 && args(0) == "--help") {
           usage
           OS.exitSuccess
         }
-        logger.info("Program _ started." << progName)
-        Errors.context("Program _ command line error" << progName, "Use --help for help.") {
+        logInfo("Program _ started." << progName)
+        Errors.trap("Program _ command line error" << progName, "Use --help for help.") {
           parse
+          stackTrace = stackTraceSwitch.v
         }
-        val result = Errors.context("Program _ run-time error" << progName) {
-          logger.enableDebug = debugSwitch.v
+        Errors.trap("Program _ run-time error" << progName) {
           if (logConfigSwitch.v)
-            logConfig(logger)
-          code(logger)
+            logConfig
+          code
         }
-        logger.info("Program _ ended." << progName)
-        result
-      } catch {
-        case e: Exception =>
-          if (stackTrace)
-            throw e
-          else {
-            logger.error(e)
-            OS.exitError
-          }
+        logInfo("Program _ ended." << progName)
+      }
+
+      Errors.recover(run) using { e =>
+        logException(e, stackTrace)
+        OS.exitError
       }
     }
   }

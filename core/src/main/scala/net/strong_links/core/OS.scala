@@ -60,7 +60,7 @@ object OS {
 
   // Allow the manipulation of Unix paths in a Linux shell console.
   def translatePath(path: String) = {
-    if (path.contains('/') && (IO.dirSeparatorChar == '\\'))
+    if (path.contains('/') && IO.isWindows)
       toWindows(path)
     else
       path

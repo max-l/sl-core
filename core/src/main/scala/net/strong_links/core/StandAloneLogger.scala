@@ -2,14 +2,21 @@ package net.strong_links.core
 
 class StandAloneLogger {
 
-  private def emit(what: String, msg: String) = Console.err.println("[_] _" << (what, msg))
+  private def emit(what: String, msg: String): Unit = Console.err.println("[_] _" << (what, msg))
 
-  def debug(msg: String) = emit("Debug", msg)
+  def isErrorEnabled(): Boolean = true
 
-  def info(msg: String) = emit("Info", msg)
+  def isInfoEnabled(): Boolean = true
 
-  def warning(msg: String) = emit("Warning", msg)
+  def isWarnEnabled(): Boolean = true
 
-  def error(msg: String) = emit("Error", msg)
+  def isDebugEnabled(): Boolean = true
+
+  def debug(msg: String): Unit = emit("Debug", msg)
+
+  def info(msg: String): Unit = emit("Info", msg)
+
+  def warn(msg: String): Unit = emit("Warning", msg)
+
+  def error(msg: String): Unit = emit("Error", msg)
 }
-

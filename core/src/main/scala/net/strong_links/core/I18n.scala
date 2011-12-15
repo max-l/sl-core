@@ -44,7 +44,7 @@ object I18nUtil {
   def makeLocalizationsFrom(codeLocalization: I18nCodeLocalization, p: String) = {
     val partialList =
       Util.split(p, ",").map(_.trim).filter(!_.isEmpty).map { s =>
-        Errors.context("Invalid language/variant specification _" << s) {
+        Errors.trap("Invalid language/variant specification _" << s) {
           val (id, parentLanguage) = if (s.contains(":")) Util.splitTwo(s, ':') else (s, "")
           val (language, country) = if (id.contains("_")) Util.splitTwo(id, '_') else (id, "")
           new localizationInfo(language, country, parentLanguage, s)
@@ -137,26 +137,21 @@ class I18nGettextClass(packageName: String, locale: Locale, parentClass: Option[
   private val dynamicClass = loadIt
 
   private def loadIt = {
-    val targetClass = try Class.forName(dynamicClassName) catch {
-      case e: Exception => Errors.fatal("Can't load class _ (_)." << (dynamicClassName, e.getMessage))
+    val dc = Errors.trap("Can't dynamically load class _." << dynamicClassName) {
+      Class.forName(dynamicClassName).newInstance.asInstanceOf[{
+        val languageKey: String
+        val nbEntries: Int
+        val nbPluralForms: Int
+        val pluralForms: String
+        val generatedAt: String
+        val javaVersion: String
+        def computePluralForm(n: Int): Int
+        def gettext(msgid: String): String
+        def ngettext(msgid: String, n: Int): String
+      }]
     }
-    val classInstance = try targetClass.newInstance catch {
-      case e: Exception => Errors.fatal("Can't instantiate class _ (_)." << (dynamicClassName, e.getMessage))
-    }
-    val dc = classInstance.asInstanceOf[{
-      val languageKey: String
-      val nbEntries: Int
-      val nbPluralForms: Int
-      val pluralForms: String
-      val generatedAt: String
-      val javaVersion: String
-      def computePluralForm(n: Int): Int
-      def gettext(msgid: String): String
-      def ngettext(msgid: String, n: Int): String
-    }]
     if (dc.languageKey != languageKey)
-      Errors.fatal("Invalid language key _ for class _ ; _ was expected."
-        << (dc.languageKey, dynamicClassName, languageKey))
+      Errors.fatal("Invalid language key _ for class _ ; _ was expected." << (dc.languageKey, dynamicClassName, languageKey))
     dc
   }
 

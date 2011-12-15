@@ -1,8 +1,16 @@
 package net.strong_links.core
 
+import java.lang.StackTraceElement
+
 class StrongLinksException(s: String) extends Exception(s)
 
-class SystemException(msg: String) extends StrongLinksException(msg)
+class SystemException(msg: String, val causedByStackTrace: Option[Array[StackTraceElement]]) extends StrongLinksException(msg)
+
+object SystemException {
+  def unapply(se: SystemException): Option[Array[StackTraceElement]] = {
+    se.causedByStackTrace
+  }
+}
 
 class UserException(val msg: I18n) extends StrongLinksException("User exception")
 
@@ -14,7 +22,12 @@ object Errors {
    * Signal a general fatal error .
    */
   private def throwError(params: LoggingParameter*): Nothing = {
-    throw new SystemException(LoggingParameter.format(params: _*))
+    val message = LoggingParameter.format(params: _*)
+    // Try to see if a root cause exception is supplied in the parameters. By convention,
+    // the root cause exception is located at the very "far right" of the argument list, but not
+    // it is not necessarily the last argument.
+    val lastStackTrace = params.collect { case elp: ExceptionLoggingParameter => elp.stackTrace }.reverse.headOption
+    throw new SystemException(message, lastStackTrace)
   }
 
   def fatal(params: LoggingParameter*): Nothing = {
@@ -24,14 +37,45 @@ object Errors {
       throwError(params: _*)
   }
 
-  def context[R](params: LoggingParameter*)(anyCode: => R): R = {
-    def mkParams(e: Exception) = params.toList :+ (e: LoggingParameter)
-    try anyCode catch {
+  def trap[R](params: LoggingParameter*)(anyCode: => R): R = {
+    recover(anyCode) using { e =>
+      Errors.fatal(params.toList :+ (e: LoggingParameter): _*)
+    }
+  }
+
+  case class Recoverable[R](results: Option[R], e: Option[Exception]) {
+    def using(recoverCode: Exception => R) = (results, e) match {
+      case (Some(r), None) => r
+      case (None, Some(e)) => recoverCode(e)
+      case _ => Errors.fatal("Invalid pattern.")
+    }
+  }
+
+  def recover[R](anyCode: => R): Recoverable[R] = {
+    try Recoverable(Some(anyCode), None) catch {
       case e: Exception =>
-        Errors.fatal(mkParams(e): _*)
-      case c: Object =>
-        val e = new Exception("Unexpected exception having class " + c.getClass.getName)
-        Errors.fatal(mkParams(e): _*)
+        Recoverable(None, Some(e))
+    }
+  }
+
+  def trapByName[R](p1: => LoggingParameter)(anyCode: => R): R =
+    _trapByName(p1 _)(anyCode)
+
+  def trapByName[R](p1: => LoggingParameter, p2: => LoggingParameter)(anyCode: => R): R =
+    _trapByName(p1 _, p2 _)(anyCode)
+
+  def trapByName[R](p1: => LoggingParameter, p2: => LoggingParameter, p3: => LoggingParameter)(anyCode: => R): R =
+    _trapByName(p1 _, p2 _, p3 _)(anyCode)
+
+  def trapByName[R](p1: => LoggingParameter, p2: => LoggingParameter, p3: => LoggingParameter, p4: => LoggingParameter)(anyCode: => R): R =
+    _trapByName(p1 _, p2 _, p3 _, p4 _)(anyCode)
+
+  def trapByName[R](p1: => LoggingParameter, p2: => LoggingParameter, p3: => LoggingParameter, p4: => LoggingParameter, p5: => LoggingParameter)(anyCode: => R): R =
+    _trapByName(p1 _, p2 _, p3 _, p4 _, p5 _)(anyCode)
+
+  private def _trapByName[R](params: (() => LoggingParameter)*)(anyCode: => R): R = {
+    recover(anyCode) using { e =>
+      Errors.fatal((params.toList.map(_()) :+ (e: LoggingParameter)): _*)
     }
   }
 
@@ -56,6 +100,10 @@ object Errors {
 
   def user(msg: I18n): Nothing = {
     throw new UserException(msg)
+  }
+
+  def !!![R](anyCode: => R) = {
+    { case _ => anyCode }: PartialFunction[Exception, R]
   }
 }
 

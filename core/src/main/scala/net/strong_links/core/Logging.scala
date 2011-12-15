@@ -1,7 +1,5 @@
 package net.strong_links.core
 
-import org.slf4j.{ LoggerFactory, Logger => SLF4JLogger }
-
 object Logging {
 
   type GenericLogger = {
@@ -23,34 +21,51 @@ object Logging {
 
 trait Logging {
 
-  private lazy val slf4j = LoggerFactory.getLogger(this.getClass)
+  private lazy val defaultLogger: Logging.GenericLogger = new StandAloneLogger
+  //    try org.slf4j.LoggerFactory.getLogger(this.getClass) catch {
+  //      case e: NoClassDefFoundError => new StandAloneLogger
+  //      case e: Exception => Errors.fatal("Unexpected exception trying to load sl4j logger.", e)
+  //   }
 
   private def actualLogger = {
     val l = Logging.overrider.unsafeGet
-    if (l != null) l else slf4j
+    if (l != null) l else defaultLogger
   }
 
-  def error(args: LoggingParameter*) {
+  def logError(params: LoggingParameter*) {
     val l = actualLogger
     if (l.isErrorEnabled)
-      l.error(LoggingParameter.safeFormat(args: _*))
+      l.error(LoggingParameter.safeFormat(params: _*))
   }
 
-  def debug(args: LoggingParameter*) {
+  def logDebug(params: LoggingParameter*) {
     val l = actualLogger
     if (l.isDebugEnabled)
-      l.debug(LoggingParameter.safeFormat(args: _*))
+      l.debug(LoggingParameter.safeFormat(params: _*))
   }
 
-  def info(args: LoggingParameter*) {
+  def logInfo(params: LoggingParameter*) {
     val l = actualLogger
-    if (l.isInfoEnabled) 
-      l.info(LoggingParameter.safeFormat(args: _*))
+    if (l.isInfoEnabled)
+      l.info(LoggingParameter.safeFormat(params: _*))
   }
 
-  def warn(args: LoggingParameter*) {
+  def logWarn(params: LoggingParameter*) {
     val l = actualLogger
-    if (l.isWarnEnabled) 
-      l.warn(LoggingParameter.safeFormat(args: _*))
+    if (l.isWarnEnabled)
+      l.warn(LoggingParameter.safeFormat(params: _*))
+  }
+
+  def logException(e: Exception, withStackTrace: Boolean) {
+    logError(e)
+    val at = "at"
+    val causedAt = "caused at"
+    val max = at.length max causedAt.length
+    def dump(label: String, stackTraceElements: Array[StackTraceElement]) =
+      stackTraceElements.foreach(ste => logError(label.padTo(max, ' ') + " " + ste))
+    if (withStackTrace) {
+      dump(at, e.stackTrace)
+      e match { case SystemException(ste) => dump(causedAt, ste); case _ => }
+    }
   }
 }

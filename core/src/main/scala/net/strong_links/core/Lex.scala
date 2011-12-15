@@ -1,7 +1,5 @@
 package net.strong_links.core
 
-class LexError extends Exception
-
 // Here are the various symbols/operators needed to process Scala files, Po files, and 
 // 'C' style expressions computing the plural form.
 object LexSymbol extends Enumeration {
@@ -25,7 +23,7 @@ class LexSymbolHelper(symbol: LexSymbol) {
   }
 }
 
-class BasicLexParser(pData: String, logger: Xlogger) {
+abstract class BasicLexParser(pData: String) extends Logging {
   protected val ETX = '\u2403'
   protected var lineNumber = 1
   protected val data = pData.replace("\r\n", "\n") + ETX
@@ -35,31 +33,6 @@ class BasicLexParser(pData: String, logger: Xlogger) {
   protected var startLineNumber = 1
   protected var symbol = LexSymbol.other
   protected var symbolValue = ""
-
-  // This method can be overriden to provide the source file name, if any.
-  protected def getFileName: Option[String] = None
-
-  // Error/warning handling
-  protected def addSourceInfo(startLineNumber: Int, msg: LoggingParameter) = {
-    val loggingParameters: Seq[LoggingParameter] = getFileName match {
-      case Some(fileName) =>
-        Seq("At file _, line _" << (fileName, startLineNumber), msg)
-      case None =>
-        Seq("At line _" << startLineNumber, msg)
-    }
-    loggingParameters
-  }
-
-  protected def error(startLineNumber: Int, msg: LoggingParameter): Nothing = {
-    val m = LoggingParameter.safeFormat(addSourceInfo(startLineNumber, msg): _*)
-    logger.error(m)
-    throw new LexError
-  }
-
-  protected def warning(startLineNumber: Int, msg: LoggingParameter) {
-    val m = LoggingParameter.format(addSourceInfo(startLineNumber, msg): _*)
-    logger.warning(m)
-  }
 
   // Character-level helpers.
   protected def previousChar = {
@@ -105,12 +78,12 @@ class BasicLexParser(pData: String, logger: Xlogger) {
   // Symbol checks.
   protected def expect(validChoices: Set[LexSymbol]) {
     if (symbol notIn validChoices)
-      error(startLineNumber, "Invalid symbol _; expected one of _." <<< (symbol, validChoices.mkString(", ")))
+      Errors.fatal("Invalid symbol _; expected one of _." <<< (symbol, validChoices.mkString(", ")))
   }
 
   protected def expect(validChoice: LexSymbol) {
     if (symbol != validChoice)
-      error(startLineNumber, "Invalid symbol _; expected _." <<< (symbol, validChoice))
+      Errors.fatal("Invalid symbol _; expected _." <<< (symbol, validChoice))
   }
 
   // Some rules.
@@ -158,7 +131,7 @@ class BasicLexParser(pData: String, logger: Xlogger) {
       sb.append(currentChar)
       v = (v * 10) + currentChar.toInt - '0'.toInt
       if (v > Int.MaxValue)
-        error(startLineNumber, "Number is too big.")
+        Errors.fatal("Number is too big.")
       move
     }
     symbol = number
@@ -236,7 +209,7 @@ class BasicLexParser(pData: String, logger: Xlogger) {
   }
 }
 
-class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, logger) {
+class LexParser(pData: String) extends BasicLexParser(pData) {
 
   private def isVerbatimMarker = {
     currentChar == '"' && nextChar == '"' && nextNextChar == '"'
@@ -288,17 +261,18 @@ class LexParser(pData: String, logger: Xlogger) extends BasicLexParser(pData, lo
   private def getString {
     val start = pos + 1
     move
+    def unterminated = Errors.fatal("Unterminated character string.")
     while (currentChar != ETX && currentChar != '"' && currentChar != '\n') {
       if (currentChar == '\\') {
         move
         if (currentChar == ETX)
-          error(lineNumber, "Unterminated character string.")
+          unterminated
         move
       } else
         move
     }
     if (currentChar != '"')
-      error(lineNumber, "Unterminated character string.")
+      unterminated
     symbol = string
     symbolValue = data.substring(start, pos)
     move

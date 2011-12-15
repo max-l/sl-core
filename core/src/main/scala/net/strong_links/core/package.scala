@@ -3,13 +3,6 @@ package net.strong_links
 import java.util.Locale
 
 package object core {
-  type Logger = {
-    def debug(msg: String): Unit
-    def info(msg: String): Unit
-    def warning(msg: String): Unit
-    def error(msg: String): Unit
-  }
-
   /**
    * This class is used to pass default implicit parameters to methods, in order to generate distinct internal
    * JVM method names. This is useful when we need to declare two methods with logically the same signature,

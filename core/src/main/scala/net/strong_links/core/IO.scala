@@ -15,9 +15,9 @@ object IO {
 
   def checkForExistingDirectory(file: File) {
     if (!file.exists)
-      Errors.fatal("Directory _ does not exist." << file.getCanonicalPath)
+      Errors.fatal("Directory _ does not exist." << file)
     if (!file.isDirectory)
-      Errors.fatal("File _ is not a directory." << file.getCanonicalPath)
+      Errors.fatal("File _ is not a directory." << file)
   }
 
   def copy(inFile: File, outFile: File, mightOverwrite: Boolean = true) {
@@ -25,58 +25,37 @@ object IO {
     val b = new Array[Byte](bufsiz)
     val exists = outFile.exists
     if (exists && !mightOverwrite)
-      Errors.fatal("Destination file _ already exists and cannot be overwritten." << outFile.getCanonicalPath)
+      Errors.fatal("Destination file _ already exists and cannot be overwritten." << outFile)
     createDirectory(outFile.getParentFile)
     val is = new FileInputStream(inFile)
     val os = new FileOutputStream(outFile)
     var done = false
     var offset = 0
     while (!done) {
-      try {
+      Errors.recover {
         val n = is.read(b)
-        try {
+        Errors.recover {
           if (n > 0)
             os.write(b, 0, n)
-        } catch { case e: Exception => Errors.fatal("Writing _ bytes in _ at offset _" << (n, outFile.getCanonicalPath, offset), e) }
+        } using { e => Errors.fatal("Writing _ bytes in _ at offset _" << (n, outFile, offset), e) }
         done = n < bufsiz
         offset += n
-      } catch { case e: Exception => Errors.fatal("Reading _ bytes in _ at offset _" << (bufsiz, inFile.getCanonicalPath, offset), e) }
+      } using { e => Errors.fatal("Reading _ bytes in _ at offset _" << (bufsiz, inFile, offset), e) }
     }
     is.close
     os.close
   }
 
   def scanDirectory(directory: File, filter: File => Boolean)(work: File => Unit): Unit = {
-    if (!directory.exists)
-      Errors.fatal("Directory _ does not exist." << directory)
-    if (!directory.isDirectory)
-      Errors.fatal("File _ is not a directory." << directory)
-    val files = directory.listFiles
-    if (files == null)
-      Errors.fatal("Can't list files in directory _." << directory.getCanonicalPath)
-    for (f <- files) {
-      if (f.isDirectory)
-        scanDirectory(f, filter) { work }
-      else if (filter(f))
-        work(f)
-    }
+    getDirectories(directory).foreach(scanDirectory(_, filter) { work })
+    getFiles(directory).filter(filter).foreach(work(_))
   }
 
-  def scanDirectory(directory: File)(work: File => Unit): Unit = {
-    scanDirectory(directory, (f) => true) { work }
-  }
+  def scanDirectory(directory: File)(work: File => Unit): Unit =
+    scanDirectory(directory, f => true) { work }
 
-  def processDirectories(directory: File)(work: File => Unit): Unit = {
-    if (!directory.exists)
-      Errors.fatal("Directory _ does not exist." << directory)
-    if (!directory.isDirectory)
-      Errors.fatal("File _ is not a directory." << directory)
-    for (f <- directory.listFiles)
-      if (f.isDirectory) {
-        work(f)
-        processDirectories(f) { work }
-      }
-  }
+  def processDirectories(directory: File)(work: File => Unit): Unit =
+    getDirectories(directory).foreach(f => { processDirectories(f)(work); work(f) })
 
   def writeUtf8ToFile(file: File, contents: String) {
     val ps = new PrintStream(file, "UTF-8")
@@ -101,13 +80,13 @@ object IO {
 
   def loadBinaryFile(f: File): Array[Byte] = {
     if (f.length > Int.MaxValue)
-      Errors.fatal("File _ is too long." << f.getCanonicalPath)
+      Errors.fatal("File _ is too long." << f)
     val toRead = f.length.toInt
     val buffer = new Array[Byte](toRead)
     val fis = new FileInputStream(f)
     val bytesRead = fis.read(buffer)
     if (bytesRead != toRead)
-      Errors.fatal("Only _ bytes read in file _, expected _." << (bytesRead, f.getCanonicalPath, toRead))
+      Errors.fatal("Only _ bytes read in file _, expected _." << (bytesRead, f, toRead))
     fis.close
     buffer
   }
@@ -135,16 +114,16 @@ object IO {
 
   private def createSingleDirectory(directory: File) {
     if (directory.exists && !directory.isDirectory)
-      Errors.fatal("Existing path _ is not a directory as expected." << directory.getCanonicalPath)
+      Errors.fatal("Existing path _ is not a directory as expected." << directory)
     if (!directory.exists)
       if (!directory.mkdir)
-        Errors.fatal("Can't create directory _." << directory.getCanonicalPath)
+        Errors.fatal("Can't create directory _." << directory)
   }
 
   def createDirectory(directory: File, mightAlreadyExist: Boolean = true) {
     val exists = directory.exists
     if (exists && !mightAlreadyExist)
-      Errors.fatal("Directory _ already exists." << directory.getCanonicalPath)
+      Errors.fatal("Directory _ already exists." << directory)
     if (!exists) {
       val segments = Util.split(directory.getCanonicalPath, IO.dirSeparator)
       for (n <- 1 to segments.length)
@@ -165,19 +144,19 @@ object IO {
   def deleteFile(f: File, mightNotExist: Boolean = true) {
     val exists = f.exists
     if (!exists && !mightNotExist)
-      Errors.fatal("File _ does not exist." << f.getCanonicalPath)
+      Errors.fatal("File _ does not exist." << f)
     if (exists)
       if (!f.delete)
-        Errors.fatal("Can't delete file _." << f.getCanonicalPath)
+        Errors.fatal("Can't delete file _." << f)
   }
 
   def renameFile(from: File, to: File, mightOverwrite: Boolean = true) {
     val exists = to.exists
     if (exists && !mightOverwrite)
-      Errors.fatal("Destination file _ already exists and cannot be overwritten." << to.getCanonicalPath)
+      Errors.fatal("Destination file _ already exists and cannot be overwritten." << to)
     deleteFile(to, !exists)
     if (!from.renameTo(to))
-      Errors.fatal("Can't rename file _ to _." << (from.getCanonicalPath, to.getCanonicalPath))
+      Errors.fatal("Can't rename file _ to _." << (from, to))
   }
 
   def checkDirectory(directory: File, createIfDoesNotExist: Boolean = false) {
@@ -185,10 +164,43 @@ object IO {
       if (createIfDoesNotExist)
         createDirectory(directory, false)
       else
-        Errors.fatal("Directory _ does not exist." << directory.getCanonicalPath)
+        Errors.fatal("Directory _ does not exist." << directory)
     if (!directory.isDirectory)
-      Errors.fatal("File _ is not a directory." << directory.getCanonicalPath)
+      Errors.fatal("File _ is not a directory." << directory)
   }
+
+  def isWindows = IO.dirSeparatorChar == '\\'
+
+  def getRelativePath(directory: File, file: File) = {
+    checkDirectory(directory)
+    checkDirectory(file)
+    def adjustCase(s: String) = if (IO.isWindows) s else s.toLowerCase
+    val dirPath = adjustCase(directory.getCanonicalPath)
+    val filePath = adjustCase(file.getCanonicalPath)
+    if (!filePath.startsWith(dirPath))
+      Errors.fatal("Path of subdirectory _ does not start with _." << (filePath, dirPath))
+    val results = filePath.substring(dirPath.length)
+    if (results.isEmpty)
+      Errors.fatal("Relative path is empty.")
+    results
+  }
+
+  def makeFile(directory: File, name: String) = {
+    checkDirectory(directory)
+    new File(directory.getCanonicalPath + dirSeparatorChar + name)
+  }
+
+  def getAllFiles(directory: File) = {
+    checkDirectory(directory)
+    val files = directory.listFiles
+    if (files == null)
+      Errors.fatal("Can't get files in directory _." << directory)
+    files.toList
+  }
+
+  def getFiles(directory: File) = getAllFiles(directory).filter(_.isFile)
+
+  def getDirectories(directory: File) = getAllFiles(directory).filter(_.isDirectory)
 }
 
 class CharStream {

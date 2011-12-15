@@ -175,22 +175,21 @@ object Util {
 
   def split(s: String, del: Char = '\n'): List[String] = split(s, del.toString)
 
-  private def genericSplitTwo(list: List[String], originalString: String, originalDelimiter: String) = {
-    Errors.context("Split error on input string _" << originalString) {
-      if (list.length == 1)
-        Errors.fatal("Delimiter _ not found." << originalDelimiter)
-      if (list.length != 2)
-        Errors.fatal("Wrong number of segments", "Found _, expected 2" << list.length)
-      (list(0), list(1))
-    }
+  def nsplit(s: String, nbExpected: Int, del: String): List[String] = {
+    val segments = split(s, del)
+    if (segments.length != nbExpected)
+      Errors.fatal("_ segments found, _ expected" << (segments.length, nbExpected),
+        "String _, delimiter _" << (s, del))
+    segments
   }
 
-  def splitTwo(s: String, delimiter: String) =
-    genericSplitTwo(split(s, delimiter), delimiter, s)
+  def nsplit(s: String, nbExpected: Int, del: Char = '\n'): List[String] =
+    nsplit(s, nbExpected, del.toString)
 
-  def splitTwo(s: String, delimiter: Char) = {
-    val del = delimiter.toString
-    genericSplitTwo(split(s, del), del, s)
+  def splitTwo(s: String, del: String): (String, String) = {
+    val list = nsplit(s, 2, del)
+    (list(0), list(1))
   }
-
+  def splitTwo(s: String, del: Char = '\n'): (String, String) =
+    splitTwo(s, del.toString)
 }
