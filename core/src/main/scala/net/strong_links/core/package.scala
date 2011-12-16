@@ -37,10 +37,6 @@ package object core {
     new PluggedStringLoggingParameter(ps)
   }
 
-  implicit def exceptionToExceptionLoggingParameter(e: Exception) = {
-    new ExceptionLoggingParameter(e)
-  }
-
   object userLocale extends ThreadLocalStack[Locale]
 
   implicit def stringToStringGeneralString(s: String): GeneralString = {

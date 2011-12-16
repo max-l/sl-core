@@ -269,9 +269,10 @@ trait CmdLineTrait {
         logInfo("Program _ ended." << progName)
       }
 
-      Errors.recover(run) using { e =>
-        logException(e, stackTrace)
-        OS.exitError
+      try run catch {
+        case e =>
+          logError(e, stackTrace)
+          OS.exitError
       }
     }
   }

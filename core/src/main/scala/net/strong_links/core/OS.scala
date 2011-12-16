@@ -35,6 +35,8 @@ object OS {
 
   def exitError: Nothing = exit(exitCodeError)
 
+  def getExceptionMessage(t: Throwable) = if (t.getMessage == null) "(No message)" else t.getMessage
+
   def getFinalClassName(obj: Object) = {
     val name = obj.getClass.getName
     val shortName = Util.split(name, ".").last

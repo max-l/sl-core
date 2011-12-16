@@ -10,7 +10,7 @@ object Buildz extends Build {
     organization := "net.strong_links",
     version := "0.2",
     scalaVersion := "2.9.1",
-//    logLevel in Global := Level.Warn,
+    logLevel in Global := Level.Warn,
     publishArtifact in packageDoc := false
   )
     
@@ -27,8 +27,7 @@ object Buildz extends Build {
     base = file("core"),
     settings = buildSettings ++Seq(
       libraryDependencies ++= Seq(
-          "org.slf4j" % "slf4j-api" % "1.6.1",
-          "ch.qos.logback" % "logback-classic" % "1.0.0"
+         "org.slf4j" % "slf4j-api" % "1.6.1"
       )
     )
   )

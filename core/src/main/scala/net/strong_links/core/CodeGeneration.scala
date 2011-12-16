@@ -60,9 +60,9 @@ trait CodeGeneration extends Logging {
   def generateScalaFile[T](entries: Seq[T], outputFile: File, sourceFile: File,
     masterPackageName: String, packageName: String, className: String, objectName: String, objectIsInside: Boolean, imports: List[String])(code: T => String) {
     val cs = new LeveledCharStream
-    def genObjectIf(b: Boolean) = if (b) {
+    def genObjectIf(b: Boolean, what: String, element: String) = if (b) {
       cs.println
-      cs.println("package object _ extends _._._" << (objectName, masterPackageName, packageName, className))
+      cs.println("_ _ _ _._._" << (what, objectName, element, masterPackageName, packageName, className))
     }
     header(cs, sourceFile, outputFile)
     cs.block("package _" << masterPackageName) {
@@ -75,9 +75,9 @@ trait CodeGeneration extends Logging {
         cs.block("class _" << className) {
           entries.foreach(e => cs.println(code(e)))
         }
-        genObjectIf(objectIsInside)
+        genObjectIf(objectIsInside, "object", "extends")
       }
-      genObjectIf(!objectIsInside)
+      genObjectIf(!objectIsInside, "package object", "extends")
     }
     IO.createDirectory(outputFile.getParentFile, true)
     IO.writeUtf8ToFile(outputFile, cs.close)

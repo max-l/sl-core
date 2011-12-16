@@ -32,15 +32,15 @@ object IO {
     var done = false
     var offset = 0
     while (!done) {
-      Errors.recover {
+      try {
         val n = is.read(b)
-        Errors.recover {
+        try {
           if (n > 0)
             os.write(b, 0, n)
-        } using { e => Errors.fatal("Writing _ bytes in _ at offset _" << (n, outFile, offset), e) }
+        } catch { case e => Errors.fatal(e, "Writing _ bytes in _ at offset _" << (n, outFile, offset)) }
         done = n < bufsiz
         offset += n
-      } using { e => Errors.fatal("Reading _ bytes in _ at offset _" << (bufsiz, inFile, offset), e) }
+      } catch { case e => Errors.fatal(e, "Reading _ bytes in _ at offset _" << (bufsiz, inFile, offset)) }
     }
     is.close
     os.close
@@ -173,7 +173,6 @@ object IO {
 
   def getRelativePath(directory: File, file: File) = {
     checkDirectory(directory)
-    checkDirectory(file)
     def adjustCase(s: String) = if (IO.isWindows) s else s.toLowerCase
     val dirPath = adjustCase(directory.getCanonicalPath)
     val filePath = adjustCase(file.getCanonicalPath)
