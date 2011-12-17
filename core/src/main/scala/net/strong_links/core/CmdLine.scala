@@ -162,7 +162,7 @@ trait CmdLineTrait {
 
       var stackTrace = false
 
-      def usage {
+      def usage = {
         def w(s: String) = Console.err.println(s)
         def f(fmt: String, i: Item[_], width: Int) {
           val k = width + 6
@@ -198,6 +198,7 @@ trait CmdLineTrait {
             w(h.text)
         }
         w("")
+        OS.exitSuccess
       }
 
       def processSwitch(key: String)(getNextArg: => Option[String]) {
@@ -251,22 +252,20 @@ trait CmdLineTrait {
           setMap(par(i), ab(i))
       }
 
-      def run {
-        if (args.length == 1 && args(0) == "--help") {
+      def run = Errors.trap("Program _" << progName) {
+        if (args.length == 1 && args(0) == "--help")
           usage
-          OS.exitSuccess
-        }
         logInfo("Program _ started." << progName)
-        Errors.trap("Program _ command line error" << progName, "Use --help for help.") {
+        Errors.trap("Command line error", "Use --help for help.") {
           parse
           stackTrace = stackTraceSwitch.v
         }
-        Errors.trap("Program _ run-time error" << progName) {
+        Errors.trap("Run-time error") {
           if (logConfigSwitch.v)
             logConfig
           code
         }
-        logInfo("Program _ ended." << progName)
+        logInfo("Program _ ended successfully." << progName)
       }
 
       try run catch {

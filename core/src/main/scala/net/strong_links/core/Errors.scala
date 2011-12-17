@@ -5,12 +5,13 @@ package net.strong_links.core
  */
 object Errors {
 
-  class SystemException(params: Seq[LoggingParameter], cause: Option[Throwable])
+  class SystemException(val params: Seq[LoggingParameter], val cause: Option[Throwable])
     extends Exception("System exception", cause.getOrElse(null)) {
     override def getMessage() = LoggingParameter.safeFormat(params)
   }
 
   private def throwError(params: Seq[LoggingParameter], cause: Option[Throwable]): Nothing = {
+    println("TILT+++")
     val p = if (params.length == 0)
       Seq("(No logging parameters supplied)": LoggingParameter)
     else
@@ -18,23 +19,32 @@ object Errors {
     throw new SystemException(p, cause)
   }
 
+  private def concat(params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]): Seq[LoggingParameter] =
+    (params.toList ::: moreParams.toList)
+
   def fatal(params: LoggingParameter*) =
     throwError(params, None)
 
   def fatal(params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]) =
-    throwError(params.toList ::: moreParams.toList, None)
+    throwError(concat(params, moreParams), None)
 
   def fatal(cause: Throwable, params: LoggingParameter*) =
     throwError(params, Some(cause))
 
   def fatal(cause: Throwable, params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]) =
-    throwError(params.toList ::: moreParams.toList, Some(cause))
+    throwError(concat(params, moreParams), Some(cause))
 
   def trap[R](params: LoggingParameter*)(anyCode: => R): R =
-    try anyCode catch { case e => throwError(params, Some(e)) }
+    try anyCode catch {
+      case e: SystemException => throwError(concat(params, e.params), e.cause)
+      case e => throwError(params, Some(e))
+    }
 
   private def _liveTrap[R](params: (() => LoggingParameter)*)(anyCode: => R): R =
-    try anyCode catch { case e => throwError(params.map(_()), Some(e)) }
+    try anyCode catch {
+      case e: SystemException => throwError(concat(params.map(_()), e.params), e.cause)
+      case e => throwError(params.map(_()), Some(e))
+    }
 
   def liveTrap[R](p1: => LoggingParameter)(anyCode: => R): R =
     _liveTrap(p1 _)(anyCode)
@@ -74,15 +84,19 @@ object Errors {
     if (e == null) Nil else e +: exceptionChain(e.getCause)
 
   def formatException(t: Throwable, withStackTrace: Boolean) = {
-    val cs = new CharStream
+    val b = scala.collection.mutable.ListBuffer[String]()
     val chain = exceptionChain(t)
     val last = chain.reverse.head
     for (e <- chain) {
-      cs.println("_ exception: _" << (OS.getFinalClassName(e), OS.getExceptionMessage(e)))
+      val label = e match {
+        case se: SystemException => ""
+        case _ => OS.getFinalClassName(e) + " exception: "
+      }
+      b += label + OS.getExceptionMessage(e)
       if (withStackTrace && (e eq last))
         for (ste <- e.getStackTrace)
-          cs.println("    at " + ste.toString.trim)
+          b += "    at " + ste.toString.trim
     }
-    cs.close
+    b.mkString("\n")
   }
 }
