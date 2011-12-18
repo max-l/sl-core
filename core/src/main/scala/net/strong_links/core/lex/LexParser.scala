@@ -104,12 +104,13 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     setToken(Number, sb.toString)
   }
 
-  protected def getString {
-    val start = pos + 1
+  protected def getQuoted(quote: Char, allowEscape: Boolean, symbol: LexSymbol) {
+    // Skip over the intial quote
     move
-    def unterminated = Errors.fatal("Unterminated character string.")
-    while (currentChar != ETX && currentChar != '"' && currentChar != '\n') {
-      if (currentChar == '\\') {
+    val start = pos
+    def unterminated = Errors.fatal("Unterminated _." << symbol)
+    while (currentChar != ETX && currentChar != quote && currentChar != '\n') {
+      if (allowEscape && (currentChar == '\\')) {
         move
         if (currentChar == ETX)
           unterminated
@@ -117,11 +118,15 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
       } else
         move
     }
-    if (currentChar != '"')
+    if (currentChar != quote)
       unterminated
-    setToken(CharacterString, data.substring(start, pos))
+    setToken(symbol, data.substring(start, pos))
     move
   }
+
+  protected def getString = getQuoted('"', true, CharacterString)
+
+  protected def getTickedIdentifier = getQuoted('`', false, Identifier)
 
   def getLineComments(s: LexSymbol) {
     val c = eatUntil(currentChar == '\n')
@@ -184,6 +189,8 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
       getWord(sb.toString)
     } else if (currentChar.isDigit)
       getNumber
+    else if (currentChar == '`')
+      getTickedIdentifier
     else
       getMiscellaneous
   }

@@ -11,7 +11,6 @@ object Errors {
   }
 
   private def throwError(params: Seq[LoggingParameter], cause: Option[Throwable]): Nothing = {
-    println("TILT+++")
     val p = if (params.length == 0)
       Seq("(No logging parameters supplied)": LoggingParameter)
     else
