@@ -4,17 +4,22 @@ import net.strong_links.core._
 
 abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
 
-  val Other, Eof, Comma, Dot, Colon, LeftParenthesis, RightParenthesis = Value
-  val Identifier, CharacterString, Number = Value
+  val Other, Eof, Identifier, CharacterString, Number = symbol
+  val Comma = specialSymbol(",")
+  val Dot = specialSymbol(".")
+  val Colon = specialSymbol(":")
+  val LeftParenthesis = specialSymbol("(")
+  val RightParenthesis = specialSymbol(")")
 
   protected val ETX = '\u0000'
   private var lineNumber = 1
   protected var pos, startPos = 0
-  protected var token = new LexToken(Other, Other.toString, lineNumber, pos)
+  protected var token = defaultToken
   protected val data = pData.replace("\r\n", "\n") + ETX
   protected var currentChar = data(pos)
 
   // Token creators
+  def defaultToken = new LexToken(Other, Other.toString, lineNumber, pos)
   def setToken(symbol: LexSymbol, value: String) { token = new LexToken(symbol, value, lineNumber, startPos) }
   def setToken(symbol: LexSymbol) { setToken(symbol, symbol.toString) }
 
@@ -63,9 +68,26 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     isIdentifierFirstCharacter || currentChar.isDigit
   }
 
-  // Methods to get the various symbols.
+  lazy val identifierSymbols = getIdentifierSymbols
+
   def getWord(word: String) {
-    setToken(Identifier, word)
+    def search(value: String, low: Int, high: Int): Option[LexIdentifierSymbol] =
+      if (high < low)
+        None
+      else {
+        val mid = (low + high) / 2
+        val k = identifierSymbols(mid).identifier
+        if (k > value)
+          search(value, low, mid - 1)
+        else if (k < value)
+          search(value, mid + 1, high)
+        else
+          Some(identifierSymbols(mid))
+      }
+    search(word, 0, identifierSymbols.length - 1) match {
+      case None => setToken(Identifier, word)
+      case Some(s) => setToken(s, s.identifier)
+    }
   }
 
   // Get a number, and ensure that it can be represented as an Int.
@@ -108,22 +130,27 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     setToken(s, c)
   }
 
-  def oneChar(symbol: LexSymbol) { oneChar(symbol, currentChar.toString) }
-
-  def oneChar(symbol: LexSymbol, value: String) { setToken(symbol, value); move }
-
-  def twoChar(symbol: LexSymbol, value: String) { setToken(symbol, value); move(2) }
+  lazy val specialSymbols = getSpecialSymbols
 
   def getMiscellaneous {
-    currentChar match {
-      case ETX => move; setToken(Eof, "(EOF")
-      case ',' => oneChar(Comma)
-      case '(' => oneChar(LeftParenthesis)
-      case ')' => oneChar(RightParenthesis)
-      case '.' => oneChar(Dot)
-      case ':' => oneChar(Colon)
-      case _ => oneChar(Other)
+    for (ss <- specialSymbols) {
+      val k = ss.special
+      val L = k.length
+      var i = 0
+      var p = pos
+      while (i < L && data(p) == k(i)) {
+        p += 1
+        i += 1
+      }
+      if (i == L) {
+        setToken(ss, k)
+        move(L)
+        // Yes, this is a bit cowboy, but faster.
+        return
+      }
     }
+    setToken(Other, currentChar.toString)
+    move(1)
   }
 
   protected def skip(what: LexSymbol) {
@@ -146,7 +173,9 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     while (currentChar.isWhitespace)
       move
     startPos = pos
-    if (isIdentifierFirstCharacter) {
+    if (currentChar == ETX)
+      setToken(Eof, "End of file")
+    else if (isIdentifierFirstCharacter) {
       val sb = new StringBuilder
       while (isIdentifierCharacter) {
         sb.append(currentChar)

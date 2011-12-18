@@ -12,9 +12,9 @@ trait LexSymbolTagger {
   // the set as they are added to the map enabling the translation from the LexSymbol object to
   // its label.
   private val methods = (Set[Method]() /: getClass.getMethods.filter(m =>
-    m.getReturnType == classOf[LexSymbol] && m.getName != "Value"))(_ += _)
+    classOf[LexSymbol].isAssignableFrom(m.getReturnType) && !ignoredMethod(m)))(_ += _)
 
-  private val map = Map[LexSymbol, String]()
+  private val symbolToLabelMap = Map[LexSymbol, String]()
 
   private def updateMap {
     for (
@@ -22,10 +22,53 @@ trait LexSymbolTagger {
       i = m.invoke(this) if i != null; // When null, the val field has not been initialized yet!
       s = i.asInstanceOf[LexSymbol] // Safe to access it now.
     ) {
-      map += (s -> m.getName) // Add name to map.
-      methods -= m // Remove this method from the set.
+      symbolToLabelMap += (s -> m.getName) // Add name to map.
+      methods -= m // Remove this method from the set as we fixed it.
     }
   }
 
-  def Value = new LexSymbol(s => { if (!map.contains(s)) updateMap; map(s) })
+  def mapper(s: LexSymbol) = {
+    def get(recover: Boolean): String = symbolToLabelMap.get(s) match {
+      case Some(x) => x
+      case None if recover => updateMap; get(false)
+      case _ => Errors.fatal("Key not found.")
+    }
+    get(true)
+  }
+
+  // Set of known identifier symbols, and a method to get them as an ordered array.
+  private val idValues = Set[LexIdentifierSymbol]()
+
+  def getIdentifierSymbols = idValues.toList.sortWith(_.identifier < _.identifier).toArray
+
+  // Set of known special symbols, and a method to get them as a list ordered by decreasing
+  // lengths, as we must match longer special symbols first.
+  private val specialValues = Set[LexSpecialSymbol]()
+
+  def getSpecialSymbols = specialValues.toList.sortWith(_.special.length > _.special.length)
+
+  private def ignoredMethod(m: Method) = {
+    val name = m.getName
+    name == "symbol" || name == "idSymbol" || name == "specialSymbol"
+  }
+
+  def /* Ignored above */ symbol = new LexSymbol(mapper)
+
+  def /* Ignored above */ idSymbol = {
+    val s = new LexIdentifierSymbol(None, mapper)
+    idValues += s
+    s
+  }
+
+  def /* Ignored above */ idSymbol(identifier: String) = {
+    val s = new LexIdentifierSymbol(Some(identifier), mapper)
+    idValues += s
+    s
+  }
+
+  def /* Ignored above */ specialSymbol(k: String) = {
+    val s = new LexSpecialSymbol(k, mapper)
+    specialValues += s
+    s
+  }
 }
