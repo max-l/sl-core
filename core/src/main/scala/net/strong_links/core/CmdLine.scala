@@ -155,10 +155,10 @@ trait CmdLineTrait {
       val logConfigSwitch = switch("log-config", "Log the configuration used.")
       val stackTraceSwitch = switch("stack-trace", "Show stack trace upon error.")
       val predefinedSwitches = List(logConfigSwitch, stackTraceSwitch)
-      val allItems = (items ::: predefinedSwitches).sortWith(_.key < _.key)
+      val allItems = (items ::: predefinedSwitches)
       val par = Util.filterOn[VParameter[_]](allItems)
-      val ss = Util.filterOn[Switch](allItems)
-      val vs = Util.filterOn[VSwitch[_]](allItems)
+      val ss = Util.filterOn[Switch](allItems).sortWith(_.key < _.key)
+      val vs = Util.filterOn[VSwitch[_]](allItems).sortWith(_.key < _.key)
 
       var stackTrace = false
 

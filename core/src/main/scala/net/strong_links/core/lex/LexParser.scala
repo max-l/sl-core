@@ -56,7 +56,10 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
   // Symbol checks.
   protected def expect(validChoices: LexSymbol*) {
     if (token notIn (validChoices: _*))
-      Errors.fatal("Invalid token _; expected one of _." <<< (token, validChoices))
+      if (validChoices.length == 1)
+        Errors.fatal("Invalid token _; expected _." <<< (token, validChoices.toSeq(0)))
+      else
+        Errors.fatal("Invalid token _; expected one of _." <<< (token, validChoices))
   }
 
   // Some rules.

@@ -1,4 +1,6 @@
-package net.strong_links.core
+package net.strong_links.core.codegen
+
+import net.strong_links.core._
 
 import java.io.File
 
@@ -20,6 +22,12 @@ trait CodeGeneration extends Logging {
     s.tail.foreach(check(_, true))
   }
 
+  def checkPackageSegments(segments: List[String]) {
+    if (segments.isEmpty)
+      Errors.fatal("No segments found in package name.")
+    segments.foreach(validatePackageNameSegment)
+  }
+
   def computePackageNameSegments(rootDirectory: File, file: File, rootPackage: Option[String]) = {
     val context = "Package name computation failed for file _, input directory _ and root package _."
     Errors.trap(context << (file, rootDirectory, rootPackage)) {
@@ -31,9 +39,7 @@ trait CodeGeneration extends Logging {
         case None => Nil
       }
       val results = rootPackageSegments ::: segments
-      if (results.isEmpty)
-        Errors.fatal("No segments found in package name.")
-      results.foreach(validatePackageNameSegment)
+      checkPackageSegments(results)
       results
     }
   }

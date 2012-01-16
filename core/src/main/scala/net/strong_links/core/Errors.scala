@@ -35,13 +35,12 @@ object Errors {
 
   def trap[R](params: LoggingParameter*)(anyCode: => R): R =
     try anyCode catch {
-      case e: SystemException => throwError(concat(params, e.params), e.cause)
       case e => throwError(params, Some(e))
     }
 
   private def _liveTrap[R](params: (() => LoggingParameter)*)(anyCode: => R): R =
     try anyCode catch {
-      case e: SystemException => throwError(concat(params.map(_()), e.params), e.cause)
+      case e: SystemException => throwError(concat(params.map(_()), e.params), Some(e))
       case e => throwError(params.map(_()), Some(e))
     }
 
@@ -79,23 +78,20 @@ object Errors {
     fatal("Not implemented.")
   }
 
-  def exceptionChain(e: Throwable): List[Throwable] =
+  private def exceptionChain(e: Throwable): List[Throwable] =
     if (e == null) Nil else e +: exceptionChain(e.getCause)
 
   def formatException(t: Throwable, withStackTrace: Boolean) = {
-    val b = scala.collection.mutable.ListBuffer[String]()
-    val chain = exceptionChain(t)
-    val last = chain.reverse.head
-    for (e <- chain) {
-      val label = e match {
-        case se: SystemException => ""
-        case _ => OS.getFinalClassName(e) + " exception: "
-      }
-      b += label + OS.getExceptionMessage(e)
-      if (withStackTrace && (e eq last))
-        for (ste <- e.getStackTrace)
-          b += "    at " + ste.toString.trim
+    def getParams(t: Throwable) = t match {
+      case e: SystemException => e.params
+      case e => Seq(new StringLoggingParameter(OS.getExceptionMessage(e)))
     }
-    b.mkString("\n")
+    def fmtException(t: Throwable) =
+      OS.getFinalClassName(t) + " exception: " + OS.getExceptionMessage(t) + "\n" +
+        t.getStackTrace.map("    at " + _.toString.trim).mkString("\n")
+    val chain = exceptionChain(t)
+    val message = LoggingParameter.safeFormat(chain.flatMap(getParams))
+    val stackTrace = if (withStackTrace) chain.map(fmtException).mkString("\n", "\n", "") else ""
+    message + stackTrace
   }
 }

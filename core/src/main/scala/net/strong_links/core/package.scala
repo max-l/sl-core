@@ -37,7 +37,7 @@ package object core {
     new PluggedStringLoggingParameter(ps)
   }
 
-  object userLocale extends ThreadLocalStack[Locale]
+  object userLanguageKey extends ThreadLocalStack[String]
 
   implicit def stringToStringGeneralString(s: String): GeneralString = {
     new StringGeneralString(s)
@@ -46,4 +46,16 @@ package object core {
   implicit def i18nToI18nGeneralString(i18n: I18n): GeneralString = {
     new I18nGeneralString(i18n)
   }
+
+  def I18n(msgid: String)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, None, msgid, None, 0)
+
+  def I18nPlural(msgid: String, msgidPlural: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, None, msgid, Some(msgidPlural), n)
+
+  def I18nCtxt(msgCtxt: String, msgid: String)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, Some(msgCtxt), msgid, None, 0)
+
+  def I18nPluralCtxt(msgCtxt: String, msgid: String, msgPlural: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, Some(msgCtxt), msgid, Some(msgPlural), n)
 }

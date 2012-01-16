@@ -22,15 +22,15 @@ object PluggedArguments {
       sb.append(quote)
   }
 
-  private def decorateTraversable(t: Traversable[Any], sb: StringBuilder, quoted: Boolean, crashIfException: Boolean) {
-    sb.append('(')
+  private def decorateTraversable(t: Traversable[_], sb: StringBuilder, quoted: Boolean, crashIfException: Boolean) {
+    sb.append('[')
     var sep = ""
     for (item <- t) {
       sb.append(sep)
       decorateAny(item, sb, quoted, crashIfException)
       sep = ", "
     }
-    sb.append(')')
+    sb.append(']')
   }
 
   private def decorateAny(x: Any, sb: StringBuilder, quoted: Boolean, crashIfException: Boolean) {
@@ -39,16 +39,20 @@ object PluggedArguments {
       case f: File => decorateFile(f, sb, quoted)
       case s: String => decorateString(s, sb, quoted)
       case t: Traversable[_] => decorateTraversable(t, sb, quoted, crashIfException)
-      case _ =>
-        if (x.isInstanceOf[Array[_]])
-          decorateTraversable(x.asInstanceOf[Array[_]], sb, quoted, crashIfException)
+      case a: Array[_] =>
+        decorateTraversable(a, sb, quoted, crashIfException)
+      case option: Option[_] =>
+        if (option.isEmpty)
+          sb.append("<none>")
         else
-          try
-            decorateString(x.toString, sb, quoted)
-          catch {
-            case _: Exception if (!crashIfException) => sb.append("<bad argument>")
-            case e: Exception => throw e
-          }
+          decorateAny(option.get, sb, quoted, crashIfException)
+      case _ =>
+        try
+          decorateString(x.toString, sb, quoted)
+        catch {
+          case _: Exception if (!crashIfException) => sb.append("<bad argument>")
+          case e: Exception => throw e
+        }
     }
   }
 
