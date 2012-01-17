@@ -4,15 +4,64 @@ import java.util.Locale
 import scala.collection.mutable.{ SynchronizedMap, HashMap }
 import java.util.IdentityHashMap
 
-class I18nLocalization(val packageName: String, val language: String, val country: Option[String], val parent: Option[I18nLocalization]) {
+object I18nLanguageKey {
 
-  def usePluralRulePoString = "nplurals=???; plural=???"
+  def from(language: String, country: Option[String]): I18nLanguageKey = {
+    def normalize(s: String) = if (s == null) "" else s.trim
+    def normalizedLanguage = normalize(language).toLowerCase
+    if (normalizedLanguage == "")
+      Errors.fatal("No language found.")
+    val normalizedCountry = country match {
+      case None => None
+      case Some(c) => normalize(c).toUpperCase match {
+        case "" => Errors.fatal("No country found.")
+        case x => Some(x)
+      }
+    }
+    new I18nLanguageKey(normalizedLanguage, normalizedCountry)
+  }
 
-  override def toString: String = "[Language: _, country: _, parent: _]" << (language, country, parent)
+  def from(locale: Locale): I18nLanguageKey = Errors.trap("Invalid locale _" << locale) {
+    from(locale.getLanguage, locale.getCountry match { case null => None; case "" => None; case x => Some(x) })
+  }
 
-  val languageKey = I18nUtil.toLanguageKey(language, country)
+  def from(languageKey: String): I18nLanguageKey = Errors.trap("Invalid language key _" << languageKey) {
+    if (languageKey.contains('_')) {
+      val (a, b) = Util.splitTwo(languageKey, '_')
+      from(a, Some(b))
+    } else
+      from(languageKey, None)
+  }
 
-  val className = "I18n_" + languageKey + "_" + packageName
+  // System language key at startup. This is *not* expected to change in a server environment.
+  lazy val system = from(Locale.getDefault)
+}
+
+case class I18nLanguageKey(language: String, country: Option[String]) {
+
+  // Precompute its string representation, which will exist only once in the server.
+  val string = (country match {
+    case None => language
+    case Some(c) => language + "_" + c
+  }).intern
+
+  override def toString = string
+}
+
+class I18nLocalization(val packageName: String, val i18nLanguageKey: I18nLanguageKey, val parent: Option[I18nLocalization]) {
+
+  // Keep an internal less safe reference to the parent as this will be faster at run-time.
+  private val _parent = parent match { case None => null; case Some(p) => p }
+
+  def usePluralRulePoString: String = try {
+    I18nCodeLocalization(packageName, i18nLanguageKey).usePluralRulePoString
+  } catch {
+    case _ => "nplurals=???; plural=???"
+  }
+
+  override def toString = parent match { case None => i18nLanguageKey.string; case Some(p) => i18nLanguageKey + ":" + p.i18nLanguageKey }
+
+  val className = "I18n_" + i18nLanguageKey.string + "_" + packageName
 
   private lazy val dynamicClass = {
     val dc = Errors.trap("Can't dynamically load class _." << className) {
@@ -28,8 +77,8 @@ class I18nLocalization(val packageName: String, val language: String, val countr
         def ngettext(msgid: String, n: Int): String
       }]
     }
-    if (dc.languageKey != languageKey)
-      Errors.fatal("Invalid language key _ for class _ ; _ was expected." << (dc.languageKey, className, languageKey))
+    if (dc.languageKey != i18nLanguageKey.string)
+      Errors.fatal("Invalid language key _ for class _ ; _ was expected." << (dc.languageKey, className, i18nLanguageKey))
     dc
   }
 
@@ -37,84 +86,100 @@ class I18nLocalization(val packageName: String, val language: String, val countr
 
   def gettext(key: String): String = {
     val translation = dynamicClass.gettext(key)
-    if (translation eq "")
-      parent match {
-        case None => ""
-        case Some(p) => p.gettext(key)
-      }
+    if (translation == null)
+      if (_parent == null)
+        null
+      else
+        _parent.gettext(key)
     else
       translation
   }
 
   def ngettext(key: String, n: Int): String = {
     val translation = dynamicClass.ngettext(key, n)
-    if (translation eq "")
-      parent match {
-        case None => ""
-        case Some(p) => p.ngettext(key, n)
-      }
+    if (translation == null)
+      if (_parent == null)
+        null
+      else
+        _parent.ngettext(key, n)
     else
       translation
   }
 }
 
-class I18nCodeLocalization(packageName: String, language: String, val usePluralRule: (Int) => Boolean, override val usePluralRulePoString: String)
-  extends I18nLocalization(packageName, language, None, None)
+class I18nCodeLocalization(packageName: String, i18nLanguageKey: I18nLanguageKey, val usePluralRule: (Int) => Boolean, override val usePluralRulePoString: String)
+  extends I18nLocalization(packageName, i18nLanguageKey, None)
 
 object I18nCodeLocalization {
-  def english(packageName: String) = new I18nCodeLocalization(packageName, "en", _ != 1, "nplurals=2; plural=(n == 1) ? 0 : 1")
-  def french(packageName: String) = new I18nCodeLocalization(packageName, "fr", _ > 1, "nplurals=2; plural=(n <= 1) ? 0 : 1")
-  def apply(packageName: String, languageCode: String) = languageCode match {
-    case "en" => english(packageName)
-    case "fr" => french(packageName)
-    case _ => Errors.fatal("No code localization method for language _." << languageCode)
+
+  // Thanks to people behind "http://translate.sourceforge.net/wiki/l10n/pluralforms"
+  def en(packageName: String) = new I18nCodeLocalization(packageName, I18nLanguageKey("en", None), n => (n != 1), "nplurals=2; plural=(n != 1)")
+  def fr(packageName: String) = new I18nCodeLocalization(packageName, I18nLanguageKey("fr", None), n => (n > 1), "nplurals=2; plural=(n > 1)")
+
+  private lazy val codeLocalizationMethods = getClass.getMethods.toList.filter(m => {
+    val params = m.getParameterTypes;
+    m.getReturnType == classOf[I18nCodeLocalization] &&
+      params.length == 1 &&
+      params(0) == classOf[String]
+  })
+
+  def apply(packageName: String, i18nLanguageKey: I18nLanguageKey) = {
+    codeLocalizationMethods.map(m => m.invoke(this, Seq(packageName): _*).asInstanceOf[I18nCodeLocalization])
+      .filter(_.i18nLanguageKey.string == i18nLanguageKey.string) match {
+        case List(i18nCodeLocalization) => i18nCodeLocalization
+        case list => Errors.fatal("_ localization methods found for language key _." << (list.length, i18nLanguageKey))
+      }
   }
 }
 
 class I18nCatalog(packageName: String, codeLocalization: I18nCodeLocalization, localizations: List[I18nLocalization]) {
 
   val codeUsePlural = codeLocalization.usePluralRule
-  val codeLanguageKey = codeLocalization.languageKey
+  val codeI18nLanguageKey = codeLocalization.i18nLanguageKey
 
+  // Make sure each localization appears only once.
   I18nUtil.checkUniqueness(codeLocalization, localizations)
 
   // Try to get any string to force the dynamic class loading.
   localizations.foreach(_.dummyGet)
 
-  private[core] val map = localizations.map(L => (L.languageKey, L)).toMap
+  // Create a map to find a localization according to its language key represented as a single string.
+  private[core] val map = localizations.map(L => (L.i18nLanguageKey.toString, L)).toMap
 }
 
-protected class I18n(val catalog: I18nCatalog, val msgCtxt: Option[String], val msgid: String,
-  val msgidPlural: Option[String], val n: Int) {
+protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgidPlural: String, n: Int) {
 
-  def toString(languageKey: String): String = {
+  lazy val key = if (msgCtxt == null) msgid else (msgCtxt + "\u0000" + msgid).intern
 
-    def default = msgidPlural match { case None => msgid; case Some(p) => if (catalog.codeUsePlural(n)) p else msgid }
+  def toString(i18nLanguageKey: I18nLanguageKey): String = {
 
-    if (languageKey eq catalog.codeLanguageKey)
+    def default = if (n == Int.MaxValue) msgid else if (catalog.codeUsePlural(n)) msgidPlural else msgid
+
+    if (i18nLanguageKey.string eq catalog.codeI18nLanguageKey.string)
       default
-    else catalog.map.get(languageKey) match {
-      case None =>
+    else {
+      val i18nLocalization = catalog.map.getOrElse(i18nLanguageKey.string, null)
+      if (i18nLocalization == null)
         default
-      case Some(i18nLocalization) =>
-        val searchedMsgid = msgCtxt match {
-          case None => msgid
-          case Some(ctx) => (ctx + "\u0000" + msgid).intern
-        }
-        val translation = msgidPlural match {
-          case None => i18nLocalization.gettext(searchedMsgid)
-          case _ => i18nLocalization.ngettext(searchedMsgid, n)
-        }
-        if (translation == "")
+      else {
+        val translation = if (n == Int.MaxValue)
+          i18nLocalization.gettext(key)
+        else
+          i18nLocalization.ngettext(key, n)
+        if (translation == null)
           default
         else
           translation
+      }
     }
   }
 
   override def toString: String = {
-    val ulk = userLanguageKey.unsafeGet
-    if (ulk == null) toString(I18nUtil.systemLanguageKey) else toString(ulk)
+    val ulk = userI18nLanguageKey.unsafeGet
+    if (ulk == null)
+      toString(I18nLanguageKey.system)
+    else
+      toString(ulk)
   }
 
   def <<(args: Any*) = {
@@ -126,41 +191,19 @@ protected class I18n(val catalog: I18nCatalog, val msgCtxt: Option[String], val 
   }
 }
 
-class PluggedI18n(from: I18n, args: Option[Seq[Any]], quotedDefault: Boolean)
-  extends I18n(from.catalog, from.msgCtxt, from.msgid, from.msgidPlural, from.n) {
+class PluggedI18n(i18n: I18n, args: Option[Seq[Any]], quotedDefault: Boolean) {
 
-  override def toString: String = {
-    toString(false, quotedDefault)
-  }
+  override def toString = toString(false, quotedDefault)
 
-  def toString(failsafe: Boolean, quoted: Boolean): String = {
-    PluggedArguments.format(super.toString, args, failsafe, quoted)
-  }
+  def toString(failsafe: Boolean, quoted: Boolean) = PluggedArguments.format(i18n.toString, args, failsafe, quoted)
 }
 
 object I18nUtil {
 
-  def toLanguageKey(language: String, country: Option[String]): String = {
-    country match {
-      case None => language
-      case Some(null) => language
-      case Some("") => language
-      case Some(other) => language + "_" + other
-    }
-  }
-
-  def toLanguageKey(locale: Locale): String = toLanguageKey(locale.getLanguage, Some(locale.getCountry))
-
-  // System language key at startup. This is *not* expected to change in a server environment.
-  val systemLanguageKey = {
-    val locale = Locale.getDefault
-    toLanguageKey(locale.getLanguage, Some(locale.getCountry))
-  }
-
+  // Ensure that each language variation is handled only once.
   def checkUniqueness(codeLocalization: I18nCodeLocalization, localizations: List[I18nLocalization]) {
-    // Ensure that each language variation is handled only once.
-    (codeLocalization :: localizations).groupBy(_.languageKey).toList.find(_._2.length > 1).map(_._1) match {
-      case Some(culprit) => Errors.fatal("The localization with a language key_ exists more than once." << culprit)
+    (codeLocalization :: localizations).groupBy(_.i18nLanguageKey).toList.find(_._2.length > 1).map(_._1) match {
+      case Some(culprit) => Errors.fatal("The localization with a language key _ exists more than once." << culprit)
       case None =>
     }
   }

@@ -1,7 +1,6 @@
 package net.strong_links.core.codegen
 
 import net.strong_links.core._
-
 import java.io.File
 
 trait CodeGeneration extends Logging {
@@ -48,8 +47,8 @@ trait CodeGeneration extends Logging {
   //       about invalid unicode sequences...
   def header(cs: LeveledCharStream, source: File, destination: File) {
     def r(s: String) = s.replace("\\", "/")
-    val of = r(destination.getCanonicalPath)
-    val sf = r(source.getCanonicalPath)
+    val of = r(destination.path)
+    val sf = r(source.path)
     // Box has 80 characters wide, or more if needed.
     val pad = 15
     val stars = (80 /: Seq(of, sf))(_ max _.length + pad) - 1

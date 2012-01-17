@@ -6,15 +6,24 @@ import scala.math
 import java.security.MessageDigest
 
 object Util {
+  lazy val calendar = Calendar.getInstance
+
+  def getTime = calendar.getTime
+
   private lazy val sdf1 = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
   private lazy val sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  private lazy val sdf3 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ")
 
   def nowAsStringRaw: String = {
-    sdf1.format(Calendar.getInstance.getTime)
+    sdf1.format(getTime)
   }
 
   def nowAsString: String = {
-    sdf2.format(Calendar.getInstance.getTime)
+    sdf2.format(getTime)
+  }
+
+  def nowAsStringWithTimeDelta: String = {
+    sdf3.format(getTime)
   }
 
   def withStringBuilder(f: StringBuilder => Unit): String = {

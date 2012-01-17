@@ -9,7 +9,7 @@ object PluggedArguments {
   private def decorateFile(f: File, sb: StringBuilder, quoted: Boolean) {
     if (quoted)
       sb.append(quote)
-    sb.append("File " + f.getCanonicalPath)
+    sb.append("File " + f.path)
     if (quoted)
       sb.append(quote)
   }

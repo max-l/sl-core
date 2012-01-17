@@ -1,6 +1,7 @@
 package net.strong_links
 
 import java.util.Locale
+import java.io.File
 
 package object core {
   /**
@@ -37,7 +38,7 @@ package object core {
     new PluggedStringLoggingParameter(ps)
   }
 
-  object userLanguageKey extends ThreadLocalStack[String]
+  object userI18nLanguageKey extends ThreadLocalStack[I18nLanguageKey]
 
   implicit def stringToStringGeneralString(s: String): GeneralString = {
     new StringGeneralString(s)
@@ -47,15 +48,25 @@ package object core {
     new I18nGeneralString(i18n)
   }
 
-  def I18n(msgid: String)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, None, msgid, None, 0)
+  implicit def FileToBetterFile(file: File) = new BetterFile(file)
 
-  def I18nPlural(msgid: String, msgidPlural: String, n: Int)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, None, msgid, Some(msgidPlural), n)
+  // I18n objects creation with specific methods. Note that in order to improve performance,
+  // "null" and "Int.MaxValue" are used to minimize the creation of "Option" objects .
+  def I18n(msgid: String)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, null, msgid, null, Int.MaxValue)
+
+  def I18n(msgid: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, null, msgid, null, n)
 
   def I18nCtxt(msgCtxt: String, msgid: String)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, Some(msgCtxt), msgid, None, 0)
+    new I18n(catalog, msgCtxt, msgid, null, Int.MaxValue)
+
+  def I18nCtxt(msgCtxt: String, msgid: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, msgCtxt, msgid, null, n)
+
+  def I18nPlural(msgid: String, msgidPlural: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, null, msgid, msgidPlural, n)
 
   def I18nPluralCtxt(msgCtxt: String, msgid: String, msgPlural: String, n: Int)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, Some(msgCtxt), msgid, Some(msgPlural), n)
+    new I18n(catalog, msgCtxt, msgid, msgPlural, n)
 }

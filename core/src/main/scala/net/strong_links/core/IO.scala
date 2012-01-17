@@ -3,6 +3,24 @@ package net.strong_links.core
 import java.io._
 import scala.io._
 
+class BetterFile(file: File) {
+
+  def path = file.getCanonicalPath
+
+  def isExtension(extension: String): Boolean = {
+    val p = path
+    val start = p.length - extension.length
+    val dotPosition = start - 1
+    dotPosition >= 0 &&
+      p(dotPosition) == '.' &&
+      (0 until extension.length).forall(i => p(start + i).toLower == extension(i))
+  }
+
+  def isExtension(extensions: Seq[String]): Boolean = {
+    extensions.exists(isExtension)
+  }
+}
+
 object IO {
 
   val dirSeparator = System.getProperty("file.separator")
@@ -125,7 +143,7 @@ object IO {
     if (exists && !mightAlreadyExist)
       Errors.fatal("Directory _ already exists." << directory)
     if (!exists) {
-      val segments = Util.split(directory.getCanonicalPath, IO.dirSeparator)
+      val segments = Util.split(directory.path, IO.dirSeparator)
       for (n <- 1 to segments.length)
         createSingleDirectory(new File(segments.take(n).mkString(IO.dirSeparator)))
     }
@@ -134,7 +152,7 @@ object IO {
   lazy val currentDirSuffix = IO.dirSeparator + "."
 
   def toCanonicalPath(fileName: String) = {
-    new File(fileName).getCanonicalPath
+    new File(fileName).path
   }
 
   def currentDirectory = {
@@ -174,8 +192,8 @@ object IO {
   def getRelativePath(directory: File, file: File) = {
     checkDirectory(directory)
     def adjustCase(s: String) = if (IO.isWindows) s else s.toLowerCase
-    val dirPath = adjustCase(directory.getCanonicalPath)
-    val filePath = adjustCase(file.getCanonicalPath)
+    val dirPath = adjustCase(directory.path)
+    val filePath = adjustCase(file.path)
     if (!filePath.startsWith(dirPath))
       Errors.fatal("Path of subdirectory _ does not start with _." << (filePath, dirPath))
     val results = filePath.substring(dirPath.length)
@@ -186,7 +204,7 @@ object IO {
 
   def makeFile(directory: File, name: String) = {
     checkDirectory(directory)
-    new File(directory.getCanonicalPath + dirSeparatorChar + name)
+    new File(directory.path + dirSeparatorChar + name)
   }
 
   def getAllFiles(directory: File) = {
