@@ -23,10 +23,7 @@ trait Logging {
 
   private lazy val defaultLogger: Logging.GenericLogger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
-  private def actualLogger = {
-    val l = Logging.overrider.unsafeGet
-    if (l != null) l else defaultLogger
-  }
+  private def actualLogger = Logging.overrider.getOrElse(defaultLogger)
 
   def logError(params: LoggingParameter*) {
     val l = actualLogger

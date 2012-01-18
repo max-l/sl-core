@@ -2,6 +2,23 @@ package net.strong_links.core.lex
 
 import net.strong_links.core._
 
+object LexParser {
+
+  private def patch(s: String, from: String, to: String) = {
+    val mickeyMouse = "\uFFFF\u1234\uFFFF"
+    val doubleBackSlash = "\\\\"
+    val x = s.replace(doubleBackSlash, mickeyMouse)
+    if (x.contains(from))
+      x.replace(from, to).replace(mickeyMouse, doubleBackSlash)
+    else
+      s
+  }
+
+  def toRealLineFeeds(s: String) = patch(s, "\\n", "\n")
+
+  def toFalseLineFeeds(s: String) = patch(s, "\n", "\\n")
+}
+
 abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
 
   val Other, Eof, Identifier, CharacterString, Number = symbol

@@ -1,8 +1,9 @@
 package net.strong_links.core
 
 import java.util.Locale
+import java.io.File
 import scala.collection.mutable.{ SynchronizedMap, HashMap }
-import java.util.IdentityHashMap
+//import java.util.IdentityHashMap
 
 object I18nLanguageKey {
 
@@ -53,15 +54,9 @@ class I18nLocalization(val packageName: String, val i18nLanguageKey: I18nLanguag
   // Keep an internal less safe reference to the parent as this will be faster at run-time.
   private val _parent = parent match { case None => null; case Some(p) => p }
 
-  def usePluralRulePoString: String = try {
-    I18nCodeLocalization(packageName, i18nLanguageKey).usePluralRulePoString
-  } catch {
-    case _ => "nplurals=???; plural=???"
-  }
-
   override def toString = parent match { case None => i18nLanguageKey.string; case Some(p) => i18nLanguageKey + ":" + p.i18nLanguageKey }
 
-  val className = "I18n_" + i18nLanguageKey.string + "_" + packageName
+  private def className = "I18n_" + i18nLanguageKey + "_" + packageName
 
   private lazy val dynamicClass = {
     val dc = Errors.trap("Can't dynamically load class _." << className) {
@@ -81,8 +76,6 @@ class I18nLocalization(val packageName: String, val i18nLanguageKey: I18nLanguag
       Errors.fatal("Invalid language key _ for class _ ; _ was expected." << (dc.languageKey, className, i18nLanguageKey))
     dc
   }
-
-  def dummyGet = gettext("\uFFFF")
 
   def gettext(key: String): String = {
     val translation = dynamicClass.gettext(key)
@@ -105,9 +98,12 @@ class I18nLocalization(val packageName: String, val i18nLanguageKey: I18nLanguag
     else
       translation
   }
+
+  def fileFor(dir: File, extension: String) =
+    new File(dir.path + IO.dirSeparator + className + "." + extension)
 }
 
-class I18nCodeLocalization(packageName: String, i18nLanguageKey: I18nLanguageKey, val usePluralRule: (Int) => Boolean, override val usePluralRulePoString: String)
+class I18nCodeLocalization(packageName: String, i18nLanguageKey: I18nLanguageKey, val usePluralRule: (Int) => Boolean, val usePluralRulePoString: String)
   extends I18nLocalization(packageName, i18nLanguageKey, None)
 
 object I18nCodeLocalization {
@@ -141,9 +137,9 @@ class I18nCatalog(packageName: String, codeLocalization: I18nCodeLocalization, l
   I18nUtil.checkUniqueness(codeLocalization, localizations)
 
   // Try to get any string to force the dynamic class loading.
-  localizations.foreach(_.dummyGet)
+  localizations.foreach(_.gettext("\uFFFF"))
 
-  // Create a map to find a localization according to its language key represented as a single string.
+  // Create a map to find a localization according to its language key represented (as a single string).
   private[core] val map = localizations.map(L => (L.i18nLanguageKey.toString, L)).toMap
 }
 
@@ -174,21 +170,11 @@ protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgid
     }
   }
 
-  override def toString: String = {
-    val ulk = userI18nLanguageKey.unsafeGet
-    if (ulk == null)
-      toString(I18nLanguageKey.system)
-    else
-      toString(ulk)
-  }
+  override def toString = toString(userI18nLanguageKey.getOrElse(I18nLanguageKey.system))
 
-  def <<(args: Any*) = {
-    new PluggedI18n(this, Some(args), false)
-  }
+  def <<(args: Any*) = new PluggedI18n(this, Some(args), false)
 
-  def <<<(args: Any*) = {
-    new PluggedI18n(this, Some(args), true)
-  }
+  def <<<(args: Any*) = new PluggedI18n(this, Some(args), true)
 }
 
 class PluggedI18n(i18n: I18n, args: Option[Seq[Any]], quotedDefault: Boolean) {

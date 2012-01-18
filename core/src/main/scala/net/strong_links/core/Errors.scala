@@ -40,7 +40,6 @@ object Errors {
 
   private def _liveTrap[R](params: (() => LoggingParameter)*)(anyCode: => R): R =
     try anyCode catch {
-      case e: SystemException => throwError(concat(params.map(_()), e.params), Some(e))
       case e => throwError(params.map(_()), Some(e))
     }
 
