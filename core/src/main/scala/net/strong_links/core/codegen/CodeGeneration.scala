@@ -28,7 +28,7 @@ trait CodeGeneration extends Logging {
   }
 
   def computePackageNameSegments(rootDirectory: File, file: File, rootPackage: Option[String]) = {
-    val context = "Package name computation failed for file _, input directory _ and root package _."
+    val context = "Package name computation failed for _, input _ and root package _."
     Errors.trap(context << (file, rootDirectory, rootPackage)) {
       val directory = if (file.isDirectory) file else file.getParentFile
       val partialPath = IO.getRelativePath(rootDirectory, directory)

@@ -56,13 +56,13 @@ package object core {
     new I18n(catalog, null, msgid, null, Int.MaxValue)
 
   def I18n(msgid: String, n: Int)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, null, msgid, null, n)
+    new I18n(catalog, null, msgid, "", n)
 
   def I18nCtxt(msgCtxt: String, msgid: String)(implicit catalog: I18nCatalog) =
     new I18n(catalog, msgCtxt, msgid, null, Int.MaxValue)
 
   def I18nCtxt(msgCtxt: String, msgid: String, n: Int)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, msgCtxt, msgid, null, n)
+    new I18n(catalog, msgCtxt, msgid, "", n)
 
   def I18nPlural(msgid: String, msgidPlural: String, n: Int)(implicit catalog: I18nCatalog) =
     new I18n(catalog, null, msgid, msgidPlural, n)

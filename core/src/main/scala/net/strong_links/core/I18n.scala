@@ -149,7 +149,10 @@ protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgid
 
   def toString(i18nLanguageKey: I18nLanguageKey): String = {
 
-    def default = if (n == Int.MaxValue) msgid else if (catalog.codeUsePlural(n)) msgidPlural else msgid
+    def default = {
+      val x = if (n == Int.MaxValue) msgid else if (catalog.codeUsePlural(n)) msgidPlural else msgid
+      if (x == null) "" else x
+    }
 
     if (i18nLanguageKey.string eq catalog.codeI18nLanguageKey.string)
       default

@@ -78,7 +78,7 @@ object Errors {
   }
 
   private def exceptionChain(e: Throwable): List[Throwable] =
-    if (e == null) Nil else e +: exceptionChain(e.getCause)
+    if (e == null) Nil else exceptionChain(e.getCause) :+ e
 
   def formatException(t: Throwable, withStackTrace: Boolean) = {
     def getParams(t: Throwable) = t match {

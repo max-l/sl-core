@@ -252,7 +252,7 @@ trait CmdLineTrait {
           setMap(par(i), ab(i))
       }
 
-      def run = Errors.trap("Program _" << progName) {
+      def run = Errors.trap("Program !_" << progName) {
         if (args.length == 1 && args(0) == "--help")
           usage
         logInfo("Program _ started." << progName)

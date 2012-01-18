@@ -7,9 +7,13 @@ object PluggedArguments {
   private val quote = '\''
 
   private def decorateFile(f: File, sb: StringBuilder, quoted: Boolean) {
+    if (f.isDirectory)
+      sb.append("Directory ")
+    else
+      sb.append("File ")
     if (quoted)
       sb.append(quote)
-    sb.append("File " + f.path)
+    sb.append(f.path)
     if (quoted)
       sb.append(quote)
   }
@@ -77,6 +81,12 @@ object PluggedArguments {
           sb.append('_')
           i += 1
         } else {
+          // If there is a '!' before a '_', then we force quoting to false and we remove the '!' from the emitted buffer.
+          val actualQuoted = if (i > 0 && s(i - 1) == '!') {
+            sb.length -= 1
+            false
+          } else
+            quoted
           val argNo =
             if ((i != lastIndex) && s(i + 1).isDigit) {
               var k = 0
@@ -101,7 +111,7 @@ object PluggedArguments {
             throw new Exception("Missing argument '___'" << argNo + 1)
 
           // Got it!
-          decorateAny(args(argNo), sb, quoted, true)
+          decorateAny(args(argNo), sb, actualQuoted, true)
 
           // Get ready for next iteration.
           previousArgNo = argNo

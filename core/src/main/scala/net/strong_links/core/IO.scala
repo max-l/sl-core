@@ -35,7 +35,7 @@ object IO {
     if (!file.exists)
       Errors.fatal("Directory _ does not exist." << file)
     if (!file.isDirectory)
-      Errors.fatal("File _ is not a directory." << file)
+      Errors.fatal("_ is not a directory." << file)
   }
 
   def copy(inFile: File, outFile: File, mightOverwrite: Boolean = true) {
@@ -43,7 +43,7 @@ object IO {
     val b = new Array[Byte](bufsiz)
     val exists = outFile.exists
     if (exists && !mightOverwrite)
-      Errors.fatal("Destination file _ already exists and cannot be overwritten." << outFile)
+      Errors.fatal("Destination _ already exists and cannot be overwritten." << outFile)
     createDirectory(outFile.getParentFile)
     val is = new FileInputStream(inFile)
     val os = new FileOutputStream(outFile)
@@ -98,13 +98,13 @@ object IO {
 
   def loadBinaryFile(f: File): Array[Byte] = {
     if (f.length > Int.MaxValue)
-      Errors.fatal("File _ is too long." << f)
+      Errors.fatal("_ is too long." << f)
     val toRead = f.length.toInt
     val buffer = new Array[Byte](toRead)
     val fis = new FileInputStream(f)
     val bytesRead = fis.read(buffer)
     if (bytesRead != toRead)
-      Errors.fatal("Only _ bytes read in file _, expected _." << (bytesRead, f, toRead))
+      Errors.fatal("Only _ bytes read in _, expected _." << (bytesRead, f, toRead))
     fis.close
     buffer
   }
@@ -162,19 +162,19 @@ object IO {
   def deleteFile(f: File, mightNotExist: Boolean = true) {
     val exists = f.exists
     if (!exists && !mightNotExist)
-      Errors.fatal("File _ does not exist." << f)
+      Errors.fatal("_ does not exist." << f)
     if (exists)
       if (!f.delete)
-        Errors.fatal("Can't delete file _." << f)
+        Errors.fatal("Can't delete _." << f)
   }
 
   def renameFile(from: File, to: File, mightOverwrite: Boolean = true) {
     val exists = to.exists
     if (exists && !mightOverwrite)
-      Errors.fatal("Destination file _ already exists and cannot be overwritten." << to)
+      Errors.fatal("Destination _ already exists and cannot be overwritten." << to)
     deleteFile(to, !exists)
     if (!from.renameTo(to))
-      Errors.fatal("Can't rename file _ to _." << (from, to))
+      Errors.fatal("Can't rename _ to _." << (from, to))
   }
 
   def checkDirectory(directory: File, createIfDoesNotExist: Boolean = false) {
@@ -182,9 +182,9 @@ object IO {
       if (createIfDoesNotExist)
         createDirectory(directory, false)
       else
-        Errors.fatal("Directory _ does not exist." << directory)
+        Errors.fatal("_ does not exist." << directory)
     if (!directory.isDirectory)
-      Errors.fatal("File _ is not a directory." << directory)
+      Errors.fatal("_ is not a directory." << directory)
   }
 
   def isWindows = IO.dirSeparatorChar == '\\'
@@ -195,7 +195,7 @@ object IO {
     val dirPath = adjustCase(directory.path)
     val filePath = adjustCase(file.path)
     if (!filePath.startsWith(dirPath))
-      Errors.fatal("Path of subdirectory _ does not start with _." << (filePath, dirPath))
+      Errors.fatal("Path of _ does not start with _." << (filePath, dirPath))
     val results = filePath.substring(dirPath.length)
     if (results.isEmpty)
       Errors.fatal("Relative path is empty.")
@@ -211,7 +211,7 @@ object IO {
     checkDirectory(directory)
     val files = directory.listFiles
     if (files == null)
-      Errors.fatal("Can't get files in directory _." << directory)
+      Errors.fatal("Can't get files in _." << directory)
     files.toList
   }
 
