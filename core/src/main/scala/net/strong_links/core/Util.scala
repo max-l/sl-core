@@ -199,6 +199,9 @@ object Util {
     val list = nsplit(s, 2, del)
     (list(0), list(1))
   }
+
   def splitTwo(s: String, del: Char = '\n'): (String, String) =
     splitTwo(s, del.toString)
+
+  def sp(singular: String, plural: String, n: Int) = if (n == 1) singular else plural
 }

@@ -56,7 +56,7 @@ class I18nLocalization(val packageName: String, val i18nLanguageKey: I18nLanguag
 
   override def toString = parent match { case None => i18nLanguageKey.string; case Some(p) => i18nLanguageKey + ":" + p.i18nLanguageKey }
 
-  private def className = "I18n_" + i18nLanguageKey + "_" + packageName
+  def className = "I18n_" + i18nLanguageKey + "_" + packageName
 
   private lazy val dynamicClass = {
     val dc = Errors.trap("Can't dynamically load class _." << className) {
@@ -151,7 +151,9 @@ protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgid
 
     def default = {
       val x = if (n == Int.MaxValue) msgid else if (catalog.codeUsePlural(n)) msgidPlural else msgid
-      if (x == null) "" else x
+      if (x == null)
+        Errors.fatal("Default translation failed on _, _, _." << (msgCtxt, msgid, msgidPlural))
+      x
     }
 
     if (i18nLanguageKey.string eq catalog.codeI18nLanguageKey.string)
@@ -195,6 +197,32 @@ object I18nUtil {
       case Some(culprit) => Errors.fatal("The localization with a language key _ exists more than once." << culprit)
       case None =>
     }
+  }
+
+  def validate(os: Option[String], what: String) = {
+    os match {
+      case None =>
+      case Some(s) =>
+        if (s.trim != s)
+          Errors.fatal("The _ string _ has leading or trailing whitespace." << (what, s))
+        if (s == "")
+          Errors.fatal("Empty _ string." << what)
+    }
+  }
+
+  def compute(msgCtxt: Option[String], msgid: String) = msgCtxt match {
+    case None => msgid
+    case Some(ctx) => ctx + "\u0000" + msgid
+  }
+
+  def computeForCompiler(msgCtxt: Option[String], msgid: String) = msgCtxt match {
+    case None => msgid
+    case Some(ctx) => ctx + "\\u0000" + msgid
+  }
+
+  def computeForHuman(msgCtxt: Option[String], msgid: String): String = msgCtxt match {
+    case None => "msgid _" <<< msgid
+    case Some(ctx) => "msgctxt _ and msgid _" <<< (ctx, msgid)
   }
 }
 

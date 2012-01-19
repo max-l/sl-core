@@ -53,20 +53,20 @@ package object core {
   // I18n objects creation with specific methods. Note that in order to improve performance,
   // "null" and "Int.MaxValue" are used to minimize the creation of "Option" objects .
   def I18n(msgid: String)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, null, msgid, null, Int.MaxValue)
-
-  def I18n(msgid: String, n: Int)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, null, msgid, "", n)
+    new I18n(catalog, null, msgid, msgid, Int.MaxValue)
 
   def I18nCtxt(msgCtxt: String, msgid: String)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, msgCtxt, msgid, null, Int.MaxValue)
-
-  def I18nCtxt(msgCtxt: String, msgid: String, n: Int)(implicit catalog: I18nCatalog) =
-    new I18n(catalog, msgCtxt, msgid, "", n)
+    new I18n(catalog, msgCtxt, msgid, msgid, Int.MaxValue)
 
   def I18nPlural(msgid: String, msgidPlural: String, n: Int)(implicit catalog: I18nCatalog) =
     new I18n(catalog, null, msgid, msgidPlural, n)
 
+  def I18nPlural(msgid: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, null, msgid, msgid, n)
+
   def I18nPluralCtxt(msgCtxt: String, msgid: String, msgPlural: String, n: Int)(implicit catalog: I18nCatalog) =
     new I18n(catalog, msgCtxt, msgid, msgPlural, n)
+
+  def I18nPluralCtxt(msgCtxt: String, msgid: String, n: Int)(implicit catalog: I18nCatalog) =
+    new I18n(catalog, msgCtxt, msgid, msgid, n)
 }
