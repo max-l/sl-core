@@ -92,11 +92,19 @@ object Util {
     }
   }
 
-  def timerInSeconds(times: Int)(u: => Unit) = {
+  def getWeightedLevenshteinDistance(s: String, t: String): Double = {
+    val cost: Double = Util.getLevenshteinDistance(s, t)
+    val L = s.length + t.length
+    if (L == 0) 0.0 else cost / L
+  }
+
+  def timerInSeconds(times: Int)(u: => Unit): Double = {
     val start = System.currentTimeMillis
     (0 until times).foreach(_ => u)
     (System.currentTimeMillis - start) / 1000.0
   }
+
+  def timerInSeconds(u: => Unit): Double = timerInSeconds(1) { u }
 
   def encodeLong(v: Long) = {
     // Every long has 64 bits, and we need 11 segments of 6 bits to represent it.
