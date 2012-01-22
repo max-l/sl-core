@@ -18,20 +18,17 @@ object Errors {
     throw new SystemException(p, cause)
   }
 
-  private def concat(params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]): Seq[LoggingParameter] =
-    (params.toList ::: moreParams.toList)
-
   def fatal(params: LoggingParameter*) =
     throwError(params, None)
 
   def fatal(params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]) =
-    throwError(concat(params, moreParams), None)
+    throwError(LoggingParameter.concat(params, moreParams), None)
 
   def fatal(cause: Throwable, params: LoggingParameter*) =
     throwError(params, Some(cause))
 
   def fatal(cause: Throwable, params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]) =
-    throwError(concat(params, moreParams), Some(cause))
+    throwError(LoggingParameter.concat(params, moreParams), Some(cause))
 
   def trap[R](params: LoggingParameter*)(anyCode: => R): R =
     try anyCode catch {

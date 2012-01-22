@@ -1,5 +1,7 @@
 package net.strong_links.core
 
+import LoggingParameter._
+
 object Logging {
 
   type GenericLogger = {
@@ -23,12 +25,14 @@ trait Logging {
 
   private lazy val defaultLogger: Logging.GenericLogger = org.slf4j.LoggerFactory.getLogger(this.getClass)
 
-  private def actualLogger = Logging.overrider.getOrElse(defaultLogger)
+  protected def actualLogger = Logging.overrider.getOrElse(defaultLogger)
+
+  protected def fmtParams(params: Seq[LoggingParameter]) = LoggingParameter.safeFormat(params)
 
   def logError(params: LoggingParameter*) {
     val l = actualLogger
     if (l.isErrorEnabled)
-      l.error(LoggingParameter.safeFormat(params))
+      l.error(fmtParams(params))
   }
 
   def logError(e: Throwable, withStackTrace: Boolean = true) {
@@ -40,18 +44,51 @@ trait Logging {
   def logWarn(params: LoggingParameter*) {
     val l = actualLogger
     if (l.isWarnEnabled)
-      l.warn(LoggingParameter.safeFormat(params))
+      l.warn(fmtParams(params))
   }
 
   def logInfo(params: LoggingParameter*) {
     val l = actualLogger
     if (l.isInfoEnabled)
-      l.info(LoggingParameter.safeFormat(params))
+      l.info(fmtParams(params))
   }
 
   def logDebug(params: LoggingParameter*) {
     val l = actualLogger
     if (l.isDebugEnabled)
-      l.debug(LoggingParameter.safeFormat(params))
+      l.debug(fmtParams(params))
+  }
+}
+
+// Same, but will add a number of prefixes in the front of every logged message. The code is a bit repetitive, but this is 
+// so to preserve performance. Logging must have very little overhead when not activated.
+trait LoggingPrefixed extends Logging {
+
+  protected val loggingPrefixSeq: Seq[LoggingParameter]
+
+  protected override def fmtParams(params: Seq[LoggingParameter]) = safeFormat(concat(loggingPrefixSeq, params))
+
+  override def logError(params: LoggingParameter*) {
+    val l = actualLogger
+    if (l.isErrorEnabled)
+      l.error(fmtParams(params))
+  }
+
+  override def logWarn(params: LoggingParameter*) {
+    val l = actualLogger
+    if (l.isWarnEnabled)
+      l.warn(fmtParams(params))
+  }
+
+  override def logInfo(params: LoggingParameter*) {
+    val l = actualLogger
+    if (l.isInfoEnabled)
+      l.info(fmtParams(params))
+  }
+
+  override def logDebug(params: LoggingParameter*) {
+    val l = actualLogger
+    if (l.isDebugEnabled)
+      l.debug(fmtParams(params))
   }
 }

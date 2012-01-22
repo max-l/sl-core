@@ -20,6 +20,9 @@ object LoggingParameter {
   def safeFormat(params: Seq[LoggingParameter]) = f(params)(_.safeFormat)
 
   def handleNull(s: String) = if (s == null) "(null)" else s
+
+  def concat(params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]): Seq[LoggingParameter] =
+    (params.toList ::: moreParams.toList)
 }
 
 import LoggingParameter._

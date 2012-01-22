@@ -7,7 +7,7 @@ class BetterFile(file: File) {
 
   def path = file.getCanonicalPath
 
-  def isExtension(extension: String): Boolean = {
+  def isSingleExtension(extension: String): Boolean = {
     val p = path
     val start = p.length - extension.length
     val dotPosition = start - 1
@@ -16,8 +16,8 @@ class BetterFile(file: File) {
       (0 until extension.length).forall(i => p(start + i).toLower == extension(i))
   }
 
-  def isExtension(extensions: Seq[String]): Boolean = {
-    extensions.exists(isExtension)
+  def isExtension(extensions: String*): Boolean = {
+    extensions.exists(isSingleExtension)
   }
 }
 
@@ -74,6 +74,12 @@ object IO {
 
   def processDirectories(directory: File)(work: File => Unit): Unit =
     getDirectories(directory).foreach(f => { processDirectories(f)(work); work(f) })
+
+  def scanDirectoryNames(directory: File, filter: File => Boolean) = {
+    val list = scala.collection.mutable.ListBuffer[File]()
+    scanDirectory(directory, filter)(f => list += f)
+    list
+  }
 
   def writeUtf8ToFile(file: File, contents: String) {
     val ps = new PrintStream(file, "UTF-8")

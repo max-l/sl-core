@@ -98,10 +98,16 @@ object Util {
     if (L == 0) 0.0 else cost / L
   }
 
-  def timerInSeconds(times: Int)(u: => Unit): Double = {
-    val start = System.currentTimeMillis
-    (0 until times).foreach(_ => u)
-    (System.currentTimeMillis - start) / 1000.0
+  def timerInSeconds(times: Long)(u: => Unit): Double = {
+    val start = System.nanoTime
+    var i: Long = 0
+    while (i < times) {
+      u
+      i += 1
+    }
+    val stop = System.nanoTime
+    val delta = stop - start
+    (delta).toDouble / 1000000000.0
   }
 
   def timerInSeconds(u: => Unit): Double = timerInSeconds(1) { u }

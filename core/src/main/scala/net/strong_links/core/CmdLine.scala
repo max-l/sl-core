@@ -150,6 +150,14 @@ trait CmdLineTrait {
       xeq(List(p1, p2, p3, p4, p5, p6)) { code(p1.v, p2.v, p3.v, p4.v, p5.v, p6.v) }
     }
 
+    def run[A1, A2, A3, A4, A5, A6, A7](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4], p5: Item[A5], p6: Item[A6], p7: Item[A7])(code: (A1, A2, A3, A4, A5, A6, A7) => Unit) = {
+      xeq(List(p1, p2, p3, p4, p5, p6, p7)) { code(p1.v, p2.v, p3.v, p4.v, p5.v, p6.v, p7.v) }
+    }
+
+    def run[A1, A2, A3, A4, A5, A6, A7, A8](p1: Item[A1], p2: Item[A2], p3: Item[A3], p4: Item[A4], p5: Item[A5], p6: Item[A6], p7: Item[A7], p8: Item[A8])(code: (A1, A2, A3, A4, A5, A6, A7, A8) => Unit) = {
+      xeq(List(p1, p2, p3, p4, p5, p6, p7, p8)) { code(p1.v, p2.v, p3.v, p4.v, p5.v, p6.v, p7.v, p8.v) }
+    }
+
     def xeq(items: List[Item[_]])(code: => Unit): Unit = {
       val progName = OS.getFinalClassName(callingObject)
       val logConfigSwitch = switch("log-config", "Log the configuration used.")
