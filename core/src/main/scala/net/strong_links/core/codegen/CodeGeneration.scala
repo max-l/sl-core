@@ -5,28 +5,6 @@ import java.io.File
 
 trait CodeGeneration extends Logging {
 
-  def validatePackageNameSegment(s: String) = {
-    def invalid(why: LoggingParameter) {
-      Errors.fatal("Invalid package name segment _" << s, why)
-    }
-    def check(ch: Char, digitsAllowed: Boolean) {
-      val ok = (ch >= 'A') && (ch <= 'Z') || (ch >= 'a') && (ch <= 'z') || (ch == '_') ||
-        digitsAllowed && (ch >= '0') && (ch <= '9')
-      if (!ok)
-        invalid("Invalid character _." << ch)
-    }
-    if (s == "")
-      invalid("Empty segment")
-    check(s.head, false)
-    s.tail.foreach(check(_, true))
-  }
-
-  def checkPackageSegments(segments: List[String]) {
-    if (segments.isEmpty)
-      Errors.fatal("No segments found in package name.")
-    segments.foreach(validatePackageNameSegment)
-  }
-
   def computePackageNameSegments(rootDirectory: File, file: File, rootPackage: Option[String]) = {
     val context = "Package name computation failed for _, input _ and root package _."
     Errors.trap(context << (file, rootDirectory, rootPackage)) {
@@ -38,7 +16,7 @@ trait CodeGeneration extends Logging {
         case None => Nil
       }
       val results = rootPackageSegments ::: segments
-      checkPackageSegments(results)
+      I18nConfig.checkPackageSegments(results)
       results
     }
   }

@@ -98,7 +98,7 @@ object Util {
     if (L == 0) 0.0 else cost / L
   }
 
-  def timerInSeconds(times: Long)(u: => Unit): Double = {
+  def timerInSeconds(times: Long)(u: => Any): Double = {
     val start = System.nanoTime
     var i: Long = 0
     while (i < times) {
@@ -194,6 +194,16 @@ object Util {
       List(s)
     else
       x.split('\uFFFF').toList
+  }
+
+  def trimRight(s: String) = {
+    var L = s.length
+    while (L > 0 && s(L - 1).isWhitespace)
+      L -= 1
+    if (L == s.length)
+      s
+    else
+      s.substring(0, L)
   }
 
   def split(s: String, del: Char = '\n'): List[String] = split(s, del.toString)

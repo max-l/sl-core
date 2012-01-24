@@ -69,4 +69,9 @@ package object core {
 
   def I18nPluralCtxt(msgCtxt: String, msgid: String, n: Int)(implicit catalog: I18nCatalog) =
     new I18n(catalog, msgCtxt, msgid, msgid, n)
+
+  implicit val i18nLocalizationComparer = new Ordering[I18nLocalization] {
+    def compare(a: I18nLocalization, b: I18nLocalization): Int =
+      a.i18nLanguageKey.string compare b.i18nLanguageKey.string
+  }
 }
