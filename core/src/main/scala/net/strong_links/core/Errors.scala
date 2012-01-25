@@ -77,17 +77,47 @@ object Errors {
   private def exceptionChain(e: Throwable): List[Throwable] =
     if (e == null) Nil else exceptionChain(e.getCause) :+ e
 
-  def formatException(t: Throwable, withStackTrace: Boolean) = {
-    def getParams(t: Throwable) = t match {
-      case e: SystemException => e.params
-      case e => Seq(new StringLoggingParameter(OS.getExceptionMessage(e)))
-    }
-    def fmtException(t: Throwable) =
-      OS.getFinalClassName(t) + " exception: " + OS.getExceptionMessage(t) + "\n" +
-        t.getStackTrace.map("    at " + _.toString.trim).mkString("\n")
-    val chain = exceptionChain(t)
-    val message = LoggingParameter.safeFormat(chain.flatMap(getParams))
-    val stackTrace = if (withStackTrace) chain.map(fmtException).mkString("\n", "\n", "") else ""
-    message + stackTrace
+  private def getParams(t: Throwable, level: String = ""): Seq[LoggingParameter] =
+    exceptionChain(t).flatMap(_ match {
+      case e: SystemException =>
+        e.params
+      case e: scala.collection.parallel.CompositeThrowable =>
+        val buf = scala.collection.mutable.ListBuffer[LoggingParameter]()
+        buf += new StringLoggingParameter("Multiple exceptions start")
+        for ((t, i) <- e.throwables.toList.zipWithIndex) {
+          val iStr = i.toString
+          val newLevel = level match { case "" => iStr; case x => x + "." + iStr }
+          buf += new StringLoggingParameter("Exception #" + newLevel)
+          buf ++= getParams(t, newLevel)
+        }
+        buf += new StringLoggingParameter("Multiple exceptions end")
+        buf.toList
+      case e =>
+        Seq(new StringLoggingParameter(OS.getFinalClassName(e) + ": " + OS.getExceptionMessage(e)))
+    })
+
+  private def getStackTrace(t: Throwable, level: String = ""): Seq[String] = {
+    def fmt(t: Throwable) = (OS.getFinalClassName(t) + " exception: " + OS.getExceptionMessage(t)) +:
+      t.getStackTrace.map("    at " + _.toString.trim).toSeq
+    exceptionChain(t).flatMap(_ match {
+      case e: scala.collection.parallel.CompositeThrowable =>
+        val buf = scala.collection.mutable.ListBuffer[String]()
+        buf += ("Multiple exceptions start")
+        for ((t, i) <- e.throwables.toList.zipWithIndex) {
+          val iStr = i.toString
+          val newLevel = level match { case "" => iStr; case x => x + "." + iStr }
+          buf += ("Exception #" + newLevel)
+          buf ++= getStackTrace(t, newLevel)
+        }
+        buf += ("Multiple exceptions end")
+        buf.toList
+      case e =>
+        fmt(e)
+    })
   }
+
+  private def stackTrace(t: Throwable) = getStackTrace(t).mkString("\n", "\n", "")
+
+  def formatException(t: Throwable, withStackTrace: Boolean) =
+    LoggingParameter.safeFormat(getParams(t)) + (if (withStackTrace) stackTrace(t) else "")
 }

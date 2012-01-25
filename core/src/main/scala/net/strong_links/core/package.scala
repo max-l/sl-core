@@ -38,6 +38,10 @@ package object core {
     new PluggedStringLoggingParameter(ps)
   }
 
+  implicit def fileToFileLoggingParameter(f: File) = {
+    new FileLoggingParameter(f)
+  }
+
   object userI18nLanguageKey extends ThreadLocalStack[I18nLanguageKey]
 
   implicit def stringToStringGeneralString(s: String): GeneralString = {

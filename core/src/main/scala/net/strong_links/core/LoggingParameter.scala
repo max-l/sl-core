@@ -1,5 +1,7 @@
 package net.strong_links.core
 
+import java.io.File
+
 trait LoggingParameter {
 
   def format: String
@@ -42,6 +44,15 @@ class OptionStringLoggingParameter(val s: Option[String]) extends LoggingParamet
 }
 
 class PluggedStringLoggingParameter(val ps: PluggedString) extends LoggingParameter {
+
+  def format = ps.format(failsafe = false, quoted = true)
+
+  def safeFormat = ps.format(failsafe = true, quoted = true)
+}
+
+class FileLoggingParameter(val f: File) extends LoggingParameter {
+
+  def ps = "_" << f
 
   def format = ps.format(failsafe = false, quoted = true)
 
