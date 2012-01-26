@@ -1,4 +1,4 @@
-package net.strong_links.core
+package com.strong_links.core
 
 class PluggedString(ps: PluggableString, args: Option[Seq[Any]], quotedDefault: Boolean)
   extends PluggableString(ps.s) {

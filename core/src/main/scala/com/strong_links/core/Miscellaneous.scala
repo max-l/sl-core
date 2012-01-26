@@ -1,6 +1,6 @@
-package net.strong_links.core
+package com.strong_links.core
 
-import net.strong_links.core._
+import com.strong_links.core._
 
 import java.util.IdentityHashMap
 
@@ -56,7 +56,7 @@ class IdentityMap[A <: AnyRef, B] {
   def get(key: A) = lock synchronized { h.get(key) }
 }
 
-class UniqueIdentityMap[A <: AnyRef] extends net.strong_links.core.IdentityMap[A,A] {
+class UniqueIdentityMap[A <: AnyRef] extends com.strong_links.core.IdentityMap[A,A] {
   def put(key: A) = super.put(key)(key => key)
 }
 

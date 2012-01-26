@@ -1,4 +1,4 @@
-package net.strong_links
+package com.strong_links
 
 import java.util.Locale
 import java.io.File

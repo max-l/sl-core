@@ -1,6 +1,6 @@
-package net.strong_links.core.lex
+package com.strong_links.core.lex
 
-import net.strong_links.core._
+import com.strong_links.core._
 import java.lang.reflect.Method
 
 trait LexSymbolTagger {

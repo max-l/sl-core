@@ -1,6 +1,6 @@
-package net.strong_links.core.codegen
+package com.strong_links.core.codegen
 
-import net.strong_links.core._
+import com.strong_links.core._
 import java.io.File
 
 trait CodeGeneration extends Logging {

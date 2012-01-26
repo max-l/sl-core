@@ -1,4 +1,4 @@
-package net.strong_links.core
+package com.strong_links.core
 
 import java.util.Calendar
 import java.text.SimpleDateFormat
