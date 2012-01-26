@@ -16,5 +16,9 @@ class LexToken(val symbol: LexSymbol, val value: String, val lineNumber: Int, va
   def in(set: LexSymbol*) = set.contains(symbol)
 
   def notIn(set: LexSymbol*) = !set.contains(symbol)
+
+  def in(set: Set[LexSymbol]) = set.contains(symbol)
+
+  def notIn(set: Set[LexSymbol]) = !set.contains(symbol)
 }
 

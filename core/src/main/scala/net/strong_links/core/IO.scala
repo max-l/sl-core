@@ -75,7 +75,7 @@ object IO {
   def processDirectories(directory: File)(work: File => Unit): Unit =
     getDirectories(directory).foreach(f => { processDirectories(f)(work); work(f) })
 
-  def scanDirectoryNames(directory: File, filter: File => Boolean) = {
+  def scanDirectoryForFileNames(directory: File, filter: File => Boolean) = {
     val list = scala.collection.mutable.ListBuffer[File]()
     scanDirectory(directory, filter)(f => list += f)
     list
