@@ -78,4 +78,6 @@ package object core {
     def compare(a: I18nLocalization, b: I18nLocalization): Int =
       a.i18nLanguageKey.string compare b.i18nLanguageKey.string
   }
+
+  implicit def doubleToDoubleFormatter(d: Double) = new DoubleFormatter(d)
 }

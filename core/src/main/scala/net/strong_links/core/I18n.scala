@@ -533,3 +533,8 @@ class StringGeneralString(s: String) extends GeneralString {
 class I18nGeneralString(i18n: I18n) extends GeneralString {
   override def toString = i18n.toString
 }
+
+object I18nPackageCatalog {
+  def apply(packageName: String, codeLanguageKey: String, localizationsStr: String) =
+    new I18nConfig(packageName, codeLanguageKey, localizationsStr).toCatalog
+}

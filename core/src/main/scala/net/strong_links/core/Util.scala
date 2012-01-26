@@ -92,10 +92,10 @@ object Util {
     }
   }
 
-  def getWeightedLevenshteinDistance(s: String, t: String): Double = {
-    val cost: Double = Util.getLevenshteinDistance(s, t)
-    val L = s.length + t.length
-    if (L == 0) 0.0 else cost / L
+  def getWeightedLevenshteinDistance(from: String, to: String): Double = {
+    val cost: Double = Util.getLevenshteinDistance(from, to)
+    val L = to.length
+    if (L == 0) Double.MaxValue else cost / L
   }
 
   def timerInSeconds(times: Long)(u: => Any): Double = {
@@ -236,4 +236,9 @@ object Util {
     splitTwoTrimmed(s, del.toString)
 
   def sp(singular: String, plural: String, n: Int) = if (n == 1) singular else plural
+
+}
+
+class DoubleFormatter(d: Double) {
+  def f2 = d.formatted("%.2f")
 }
