@@ -42,7 +42,7 @@ package object core {
     new FileLoggingParameter(f)
   }
 
-  object userI18nLanguageKey extends ThreadLocalStack[I18nLanguageKey]
+  object userI18nLocale extends ThreadLocalStack[I18nLocale]
 
   implicit def stringToStringGeneralString(s: String): GeneralString = {
     new StringGeneralString(s)
@@ -73,11 +73,6 @@ package object core {
 
   def I18nPluralCtxt(msgCtxt: String, msgid: String, n: Int)(implicit catalog: I18nCatalog) =
     new I18n(catalog, msgCtxt, msgid, msgid, n)
-
-  implicit val i18nLocalizationComparer = new Ordering[I18nLocalization] {
-    def compare(a: I18nLocalization, b: I18nLocalization): Int =
-      a.i18nLanguageKey.string compare b.i18nLanguageKey.string
-  }
 
   implicit def doubleToDoubleFormatter(d: Double) = new DoubleFormatter(d)
 }

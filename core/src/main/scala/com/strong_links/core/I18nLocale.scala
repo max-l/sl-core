@@ -2,7 +2,7 @@ package com.strong_links.core
 
 import java.util.Locale
 
-private[core] object I18nLocale {
+object I18nLocale {
 
   def apply(locale: Locale) = new I18nLocale(locale)
 
@@ -14,17 +14,21 @@ private[core] object I18nLocale {
     case List(language) => new Locale(language)
     case _ => Errors.fatal("Invalid localization _." << languageKey)
   })
+
+  // System language key at startup. This is *not* expected to change in a server environment.
+  val system = apply(Locale.getDefault)
 }
 
 // A helper I18nLocale class to increase the basic functionality of the Java Locale class.
 private[core] class I18nLocale(val locale: Locale) {
 
-  val key = locale.toString
+  val key = locale.toString.intern
 
   private def d(s: String) = s match {
     case null | "" => false
     case _ => true
   }
+
   val levels = {
     def x(s: String) = if (d(s)) 1 else 0
     x(locale.getLanguage) + x(locale.getCountry) + x(locale.getVariant)

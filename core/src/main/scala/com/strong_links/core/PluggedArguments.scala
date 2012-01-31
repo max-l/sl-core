@@ -38,25 +38,26 @@ object PluggedArguments {
   }
 
   private def decorateAny(x: Any, sb: StringBuilder, quoted: Boolean, crashIfException: Boolean) {
-    x match {
-      case null => sb.append("null")
-      case f: File => decorateFile(f, sb, quoted)
-      case s: String => decorateString(s, sb, quoted)
-      case t: Traversable[_] => decorateTraversable(t, sb, quoted, crashIfException)
-      case a: Array[_] =>
-        decorateTraversable(a, sb, quoted, crashIfException)
-      case option: Option[_] =>
-        if (option.isEmpty)
-          sb.append("<none>")
-        else
-          decorateAny(option.get, sb, quoted, crashIfException)
-      case _ =>
-        try
+    val length = sb.length
+    try
+      x match {
+        case null => sb.append("null")
+        case f: File => decorateFile(f, sb, quoted)
+        case s: String => decorateString(s, sb, quoted)
+        case t: Traversable[_] => decorateTraversable(t, sb, quoted, crashIfException)
+        case a: Array[_] =>
+          decorateTraversable(a, sb, quoted, crashIfException)
+        case option: Option[_] =>
+          if (option.isEmpty)
+            sb.append("<none>")
+          else
+            decorateAny(option.get, sb, quoted, crashIfException)
+        case _ =>
           decorateString(x.toString, sb, quoted)
-        catch {
-          case _: Exception if (!crashIfException) => sb.append("<bad argument>")
-          case e: Exception => throw e
-        }
+      }
+    catch {
+      case _: Exception if (!crashIfException) => sb.length = length; sb.append("<bad argument>")
+      case e: Exception => throw e
     }
   }
 

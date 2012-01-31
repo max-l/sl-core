@@ -34,67 +34,32 @@ object I18nConfig {
     checkPackageSegments(s)
     s
   }
+
+  def toLocaleSeq(specifications: String) =
+    Util.split(specifications, ",").map(_.trim).filter(!_.isEmpty).map(L => I18nLocale.from(L).locale).toSeq
 }
 
-class I18nConfig(val packageName: String, codeLanguageKey: String, localizationsStr: String) {
+class I18nConfigLocalization(val i18nLocale: I18nLocale, val parentLocale: Option[I18nConfigLocalization]) {
 
-  def this(packageName: String, codeLanguageKey: String) = this(packageName, codeLanguageKey, "")
-
-  val packageSegments = I18nConfig.toPackageSegments(packageName)
-
-  val codeLocalization = I18nCodeLocalization.search(packageSegments, I18nLanguageKey.from(codeLanguageKey).string)
-
-  val (masterLocalizations, subLocalizations) = {
-
-    class Info(val i18nLanguageKey: I18nLanguageKey, val parentI18nLanguageKey: Option[I18nLanguageKey])
-
-    val infos = Util.split(localizationsStr, ",").map(_.trim).filter(!_.isEmpty).map { s =>
-      Errors.trap("Invalid language/variant specification _" << s) {
-        val (i18nLanguageKey, parentI18nLanguageKey) = if (s.contains(':')) {
-          val (lk, plk) = Util.splitTwo(s, ':')
-          (I18nLanguageKey.from(lk), Some(I18nLanguageKey.from(plk)))
-        } else
-          (I18nLanguageKey.from(s), None)
-        new Info(i18nLanguageKey, parentI18nLanguageKey)
-      }
-    }
-
-    val (masterInfos, subInfos) = infos.partition(_.parentI18nLanguageKey == None)
-
-    val ml = masterInfos.map(m => new I18nLocalization(packageSegments, m.i18nLanguageKey, None)).sorted
-
-    val sl = {
-      val allMasterLocalizations = codeLocalization :: ml
-      subInfos.map(s =>
-        s.parentI18nLanguageKey match {
-          case Some(plk) =>
-            allMasterLocalizations.filter(_.i18nLanguageKey == plk) match {
-              case Nil => Errors.fatal("Master localization _ not found for sublocalization _." << (plk, s.i18nLanguageKey))
-              case List(m) => new I18nLocalization(packageSegments, s.i18nLanguageKey, Some(m))
-              case list => Errors.fatal("Master localization _ found _ times." << (plk, list.length))
-            }
-          case None => Errors.fatal("No parent for sub-localization.")
-        }).sorted
-    }
-    (ml, sl)
-  }
-
-  val allLocalizations = masterLocalizations ::: subLocalizations
-
-  I18nUtil.checkUniqueness(codeLocalization, allLocalizations)
-
-  def toCatalog = new I18nCatalog(packageSegments, codeLocalization, allLocalizations)
-}
-
-private[core] class I18nConfigLocalization(val i18nlocale: I18nLocale, val parentLocale: Option[I18nConfigLocalization]) {
   override def toString = parentLocale match {
-    case None => i18nlocale.toString
-    case Some(pl) => i18nlocale + ":" + pl
+    case None => i18nLocale.toString
+    case Some(pl) => i18nLocale + ":" + pl
   }
+
+  def classNameFor(packageNameSegments: List[String]) = (i18nLocale.key :: packageNameSegments).mkString("_")
 }
 
-class I18nConfig2(packageName: String, i18nKnownLocalization: I18nKnownLocalization,
-  masterLocales: Seq[Locale] = Nil, subLocales: Seq[Locale] = Nil) {
+class I18nConfig(val packageName: String, val i18nKnownLocalization: I18nKnownLocalization,
+  val masterLocales: Seq[Locale] = Nil, val subLocales: Seq[Locale] = Nil) {
+
+  def this(packageName: String, codeKey: String, masterKeys: String = "", subKeys: String = "") =
+    this(packageName, I18nKnownLocalization.get(codeKey), I18nConfig.toLocaleSeq(masterKeys), I18nConfig.toLocaleSeq(subKeys))
+
+  def serialize = {
+    def q(s: String) = "\"" + s.replace("\"", "\\\"") + "\""
+    def x(l: Seq[Locale]) = q(l.map(_.toString).mkString(","))
+    List(q(packageName), q(i18nKnownLocalization.i18nLocale.key), x(masterLocales), x(subLocales)).mkString((", "))
+  }
 
   val packageNameSegments = I18nConfig.toPackageSegments(packageName)
 
@@ -129,8 +94,6 @@ class I18nConfig2(packageName: String, i18nKnownLocalization: I18nKnownLocalizat
         (loc, weight, i18nConfigLocalization) +: makePossibleParents(loc.down, weight, i18nConfigLocalization)
     }
 
-    val array = (makePossibleParents(Some(codeI18nLocale), CodeWeight, codeI18nConfigLocalization) :::
-      masters.flatMap(m => makePossibleParents(Some(m.i18nlocale), MasterWeight, m))).toArray
     def cmp(x: Parent, y: Parent) = {
       val (loc1, w1, c1) = x
       val (loc2, w2, c2) = y
@@ -139,9 +102,9 @@ class I18nConfig2(packageName: String, i18nKnownLocalization: I18nKnownLocalizat
         case x => -x
       }) < 0
     }
-    scala.util.Sorting.stableSort(array, cmp(_, _))
-    var possibleParents = array.toList
-    println("Possible parents: _" << possibleParents)
+
+    var possibleParents = (makePossibleParents(Some(codeI18nLocale), CodeWeight, codeI18nConfigLocalization) :::
+      masters.flatMap(m => makePossibleParents(Some(m.i18nLocale), MasterWeight, m))).sortWith(cmp)
 
     def searchParent(i18nLocale: Option[I18nLocale]): Option[I18nConfigLocalization] = i18nLocale match {
       case None => None
@@ -165,12 +128,11 @@ class I18nConfig2(packageName: String, i18nKnownLocalization: I18nKnownLocalizat
       x
     })
 
-    println("Code: _" << codeI18nConfigLocalization)
-
     (masters, subs)
   }
 
-  println("Masters: _" << masterConfigLocalizations)
-  println("Subs: _" << subConfigLocalizations)
+  def toCatalog = new I18nCatalog(packageName, i18nKnownLocalization, masterConfigLocalizations, subConfigLocalizations)
+
+  def allLocalizations = masterConfigLocalizations ::: subConfigLocalizations
 }
 

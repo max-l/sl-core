@@ -4,6 +4,8 @@ import java.util.Locale
 
 class I18nKnownLocalization(val locale: Locale, val rule: (Int) => Boolean, val poRule: String) {
 
+  val i18nLocale = I18nLocale(locale)
+
   def cloneFor(locale: Locale): I18nKnownLocalization = {
     if (this.locale.getLanguage != locale.getLanguage)
       Errors.fatal("Known localization _ and provided localization _ have different languages _ and _." <<
@@ -14,6 +16,7 @@ class I18nKnownLocalization(val locale: Locale, val rule: (Int) => Boolean, val 
   def cloneFor(languageKey: String): I18nKnownLocalization = cloneFor(I18nLocale.from(languageKey).locale)
 }
 
+// Thanks to people behind "http://translate.sourceforge.net/wiki/l10n/pluralforms"
 object I18nKnownLocalization {
 
   val rule00 = ((n: Int) => false, "nplurals=1; plural=0")
@@ -21,7 +24,6 @@ object I18nKnownLocalization {
   val rule02 = ((n: Int) => n != 1, "nplurals=2; plural=n != 1")
   val rule03 = ((n: Int) => n != 0, "nplurals=2; plural=n != 0")
   val rule04 = ((n: Int) => (n % 10 != 1) || (n % 100 == 11), "nplurals=2; plural=(n % 10 != 1) || (n % 100 == 11)")
-  //val rule05 = ((n: Int) => (n == 1 || n % 10== 1 ? 0 : 1), "nplurals=2; plural=(n == 1 || n % 10== 1 ? 0 : 1)")
 
   val map = Map(
     "ach" -> rule01,
@@ -94,7 +96,6 @@ object I18nKnownLocalization {
     "mfe" -> rule01,
     "mg" -> rule01,
     "mi" -> rule01,
-    //    "mk" -> rule05,
     "ml" -> rule02,
     "mn" -> rule02,
     "mr" -> rule02,
@@ -145,10 +146,19 @@ object I18nKnownLocalization {
     "zh2" -> rule01)
 
   def get(key: String) = map.get(key) match {
-    case None =>
-      Errors.fatal("Unknown localization _." << key)
-    case Some(x) =>
-      new I18nKnownLocalization(I18nLocale.from(key).locale, x._1, x._2)
+    case None => Errors.fatal("Localization _ is unknown." << key)
+    case Some(x) => new I18nKnownLocalization(I18nLocale.from(key).locale, x._1, x._2)
+  }
+
+  def getBest(key: String): Option[I18nKnownLocalization] = {
+    var loc: Option[I18nLocale] = Some(I18nLocale.from(key))
+    var results: Option[I18nKnownLocalization] = None
+    while (loc != None && results == None)
+      if (map.contains(loc.get.key))
+        results = Some(get(loc.get.key))
+      else
+        loc = loc.get.down
+    return results
   }
 
   def ach = get("ach")

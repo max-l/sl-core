@@ -1,28 +1,49 @@
 package com.strong_links.core
 
-class I18nCatalog(packageSegments: List[String], codeLocalization: I18nCodeLocalization, localizations: List[I18nLocalization]) {
+class I18nCatalog(packageName: String, i18nKnownLocalization: I18nKnownLocalization,
+  masters: Seq[I18nConfigLocalization] = Nil, subs: Seq[I18nConfigLocalization] = Nil) {
 
-  val codeUsePlural = codeLocalization.usePluralRule
-  val codeI18nLanguageKey = codeLocalization.i18nLanguageKey
+  private[core] val codeUsePlural = i18nKnownLocalization.rule
+  private[core] val codeKey = i18nKnownLocalization.i18nLocale.key
 
-  // Make sure each localization appears only once.
-  I18nUtil.checkUniqueness(codeLocalization, localizations)
+  private[core] val packageNameSegments = I18nConfig.toPackageSegments(packageName)
 
-  // Try to get any string to force the dynamic class loading.
-  localizations.foreach(_.gettext("\uFFFF"))
+  private[core] val map = makeMap
 
-  // Create a map to find a localization according to its language key represented (as a single string).
-  private[core] val map = localizations.map(L => (L.i18nLanguageKey.string, L)).toMap
+  def makeLocalization(i18nConfigLocalization: I18nConfigLocalization, parent: Option[I18nLocalization]) =
+    new I18nLocalization(packageName, packageNameSegments, i18nConfigLocalization, parent)
+
+  private def makeMap = {
+    val t = scala.collection.mutable.Map[String, I18nLocalization]()
+    for (m <- masters) {
+      m.parentLocale match {
+        case None =>
+        case Some(pl) => Errors.fatal("Master config localization _ has a parent _." << (m, pl))
+      }
+      t += (m.i18nLocale.key -> makeLocalization(m, None))
+    }
+    for (s <- subs) {
+      val p = s.parentLocale match {
+        case None => Errors.fatal("Sub config localization _ does not have a parent." << s)
+        case Some(pl) => pl
+      }
+      val parent = t.get(p.i18nLocale.key)
+      if (parent == None)
+        Errors.fatal("Parent localization _ not found for sub config localization _." << (p.i18nLocale.key, s))
+      t += (s.i18nLocale.key -> makeLocalization(s, parent))
+    }
+    t.toMap
+  }
 
   // Flag for no localizations
-  val noLocalizations = localizations.isEmpty
+  val noLocalizations = map.isEmpty
 }
 
 protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgidPlural: String, n: Int) {
 
   lazy val key = if (msgCtxt == null) msgid else (msgCtxt + "\u0000" + msgid).intern
 
-  def toString(i18nLanguageKey: I18nLanguageKey): String = {
+  def toString(i18nLocale: I18nLocale): String = {
 
     def default = {
       val x = if (n == Int.MaxValue) msgid else if (catalog.codeUsePlural(n)) msgidPlural else msgid
@@ -31,10 +52,10 @@ protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgid
       x
     }
 
-    if (catalog.noLocalizations || (i18nLanguageKey.string eq catalog.codeI18nLanguageKey.string))
+    if (catalog.noLocalizations || (i18nLocale.key eq catalog.codeKey))
       default
     else {
-      val i18nLocalization = catalog.map.getOrElse(i18nLanguageKey.string, null)
+      val i18nLocalization = catalog.map.getOrElse(i18nLocale.key, null)
       if (i18nLocalization == null)
         default
       else {
@@ -50,7 +71,7 @@ protected class I18n(catalog: I18nCatalog, msgCtxt: String, msgid: String, msgid
     }
   }
 
-  override def toString = toString(userI18nLanguageKey.getOrElse(I18nLanguageKey.system))
+  override def toString = toString(userI18nLocale.getOrElse(I18nLocale.system))
 
   def <<(args: Any*) = new PluggedI18n(this, Some(args), false)
 
