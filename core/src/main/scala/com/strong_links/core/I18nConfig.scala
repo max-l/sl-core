@@ -100,12 +100,12 @@ class I18nConfig2(packageName: String, i18nKnownLocalization: I18nKnownLocalizat
 
   val (masterConfigLocalizations, subConfigLocalizations) = {
 
-    implicit val i18nConfigLocalizationComparer = new Ordering[I18nConfigLocalization] {
-      def compare(a: I18nConfigLocalization, b: I18nConfigLocalization): Int = a.i18nlocale compare b.i18nlocale
+    val i18nLocaleComparer = new Ordering[I18nLocale] {
+      def compare(a: I18nLocale, b: I18nLocale): Int = a compare b
     }
 
-    val masterI18nLocales = masterLocales.map(I18nLocale.apply)
-    val subI18nLocales = subLocales.map(I18nLocale.apply)
+    val masterI18nLocales = masterLocales.map(I18nLocale.apply).toList.sorted(i18nLocaleComparer)
+    val subI18nLocales = subLocales.map(I18nLocale.apply).toList.sorted(i18nLocaleComparer)
 
     val codeI18nLocale = I18nLocale(i18nKnownLocalization.locale)
     val codeI18nConfigLocalization = new I18nConfigLocalization(codeI18nLocale, None)
@@ -113,51 +113,61 @@ class I18nConfig2(packageName: String, i18nKnownLocalization: I18nKnownLocalizat
     val groups = (codeI18nLocale +: (masterI18nLocales union subI18nLocales)).groupBy(_.key).toList
     groups.filter(_._2.length > 1).map(_._1) match {
       case Nil =>
-      case duplicates => Errors.fatal("The duplicate locales have been provided: _" << duplicates)
+      case duplicates => Errors.fatal("These duplicate locales have been provided: _" << duplicates)
     }
 
     val masters = masterI18nLocales.map(loc => new I18nConfigLocalization(loc, None))
 
-    val possibleParents = scala.collection.mutable.Map[I18nLocale, I18nConfigLocalization]()
+    type Parent = (I18nLocale, Int, I18nConfigLocalization)
+    val SubWeight = 0
+    val CodeWeight = 1
+    val MasterWeight = 2
 
-    def add(i18nLocale: Option[I18nLocale]): Unit = i18nLocale match {
-      case None =>
+    def makePossibleParents(i18nLocale: Option[I18nLocale], weight: Int, i18nConfigLocalization: I18nConfigLocalization): List[Parent] = i18nLocale match {
+      case None => Nil
       case Some(loc) =>
-        possibleParents += (loc -> codeI18nConfigLocalization)
-        add(loc.down)
+        (loc, weight, i18nConfigLocalization) +: makePossibleParents(loc.down, weight, i18nConfigLocalization)
     }
+
+    val array = (makePossibleParents(Some(codeI18nLocale), CodeWeight, codeI18nConfigLocalization) :::
+      masters.flatMap(m => makePossibleParents(Some(m.i18nlocale), MasterWeight, m))).toArray
+    def cmp(x: Parent, y: Parent) = {
+      val (loc1, w1, c1) = x
+      val (loc2, w2, c2) = y
+      ((loc1 compare loc2) match {
+        case 0 => w1 compare w2
+        case x => -x
+      }) < 0
+    }
+    scala.util.Sorting.stableSort(array, cmp(_, _))
+    var possibleParents = array.toList
+    println("Possible parents: _" << possibleParents)
 
     def searchParent(i18nLocale: Option[I18nLocale]): Option[I18nConfigLocalization] = i18nLocale match {
       case None => None
-      case Some(loc) => possibleParents.get(loc) match {
-        case Some(m) => Some(m)
+      case Some(loc) => possibleParents.find(loc == _._1) match {
         case None => searchParent(loc.down)
+        case Some(x) => Some(x._3)
       }
     }
-
-    // At this point, possible parents are the master localizations.
-    (possibleParents /: masterI18nLocales)((s, ml) => s += (ml -> new I18nConfigLocalization(ml, None)))
-
-    // We also add all the possible flavors of the code localization.
-    add(Some(codeI18nLocale))
 
     val subs = subI18nLocales.sortWith(I18nLocale.sort).map(loc => {
       val x = searchParent(loc.down) match {
         case None => Errors.fatal("No parent localization found for _." << loc)
-        case Some(parent) if parent.i18nlocale == codeI18nLocale =>
+        case Some(parent) if parent == codeI18nConfigLocalization =>
           new I18nConfigLocalization(loc, None)
         case Some(parent) => {
           new I18nConfigLocalization(loc, Some(parent))
         }
       }
       // Once a sub has been resolved, it can also be the parent of another sub.
-      possibleParents += (loc -> x)
+      possibleParents +:= (loc, SubWeight, x)
       x
     })
 
     println("Code: _" << codeI18nConfigLocalization)
 
-    (masters.sorted, subs.sorted)
+    (masters, subs)
   }
 
   println("Masters: _" << masterConfigLocalizations)
