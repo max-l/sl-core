@@ -56,23 +56,14 @@ object Errors {
     _liveTrap(p1 _, p2 _, p3 _, p4 _, p5 _)(anyCode)
 
   /**
-   * Signal a bad value error, for classes.
+   * Signal a bad value error.
    */
-  def badValue[T <: AnyRef](value: T)(implicit d0: DummyParam0) =
-    fatal("Bad value _ for _." << (value, value.getClass.getCanonicalName))
-
-  /**
-   * Signal a bad value error, for basic value types..
-   */
-  def badValue[T <: AnyVal](value: T)(implicit d1: DummyParam1) =
-    fatal("Bad value _." << value)
+  def badValue(value: Any) = fatal("Bad value _." << value)
 
   /**
    * For "Not Implemented" methods.
    */
-  def notImplemented = {
-    fatal("Not implemented.")
-  }
+  def notImplemented = fatal("Not implemented.")
 
   private def exceptionChain(e: Throwable): List[Throwable] =
     if (e == null) Nil else exceptionChain(e.getCause) :+ e

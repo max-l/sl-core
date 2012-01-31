@@ -4,19 +4,6 @@ import java.util.Locale
 import java.io.File
 
 package object core {
-  /**
-   * This class is used to pass default implicit parameters to methods, in order to generate distinct internal
-   * JVM method names. This is useful when we need to declare two methods with logically the same signature,
-   * but with different constraints.
-   */
-  class DummyParam0
-  implicit def someDummyParam0 = new DummyParam0
-
-  class DummyParam1
-  implicit def someDummyParam1 = new DummyParam1
-
-  class DummyParam2
-  implicit def someDummyParam2 = new DummyParam2
 
   implicit def stringToPluggableString(s: String) = {
     new PluggableString(s)

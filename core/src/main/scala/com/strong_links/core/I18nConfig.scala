@@ -36,7 +36,7 @@ object I18nConfig {
   }
 
   def toLocaleSeq(specifications: String) =
-    Util.split(specifications, ",").map(_.trim).filter(!_.isEmpty).map(L => I18nLocale.from(L).locale).toSeq
+    Util.split(specifications, ",").map(_.trim).filter(!_.isEmpty).map(k => I18nLocale.from(k).locale).toSeq
 }
 
 class I18nConfigLocalization(val i18nLocale: I18nLocale, val parentLocale: Option[I18nConfigLocalization]) {
@@ -46,7 +46,8 @@ class I18nConfigLocalization(val i18nLocale: I18nLocale, val parentLocale: Optio
     case Some(pl) => i18nLocale + ":" + pl
   }
 
-  def classNameFor(packageNameSegments: List[String]) = (i18nLocale.key :: packageNameSegments).mkString("_")
+  def classNameFor(packageNameSegments: List[String]) =
+    (i18nLocale.key :: packageNameSegments).mkString("_")
 }
 
 class I18nConfig(val packageName: String, val i18nKnownLocalization: I18nKnownLocalization,

@@ -142,8 +142,7 @@ object I18nKnownLocalization {
     "wa" -> rule01,
     "wo" -> rule00,
     "yo" -> rule02,
-    "zh" -> rule00,
-    "zh2" -> rule01)
+    "zh" -> rule00)
 
   def get(key: String) = map.get(key) match {
     case None => Errors.fatal("Localization _ is unknown." << key)
@@ -279,6 +278,5 @@ object I18nKnownLocalization {
   def wo = get("wo")
   def yo = get("yo")
   def zh = get("zh")
-  def zh2 = get("zh2")
 }
 
