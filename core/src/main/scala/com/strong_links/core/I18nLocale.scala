@@ -23,8 +23,11 @@ object I18nLocale {
     I18nLocale(locale)
   }
 
-  // System language key at startup. This is *not* expected to change in a server environment.
-  val system = apply(Locale.getDefault)
+  // System locale, at startup.
+  val systemStartup = systemCurrent
+
+  // System locale, current.
+  def systemCurrent = apply(Locale.getDefault)
 }
 
 // A helper I18nLocale class to increase the basic functionality of the Java Locale class.

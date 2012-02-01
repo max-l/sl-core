@@ -1,6 +1,7 @@
 package com.strong_links.core
 
 import LoggingParameter._
+import java.net.URLClassLoader
 
 object Logging {
 
@@ -20,22 +21,24 @@ object Logging {
     def debug(s: String): Unit
   }
 
-  class BasicLogger(startLevel: Int) {
+  class BasicLogger(c: Class[_]) {
 
-    private var _level: Int = startLevel
+    private val className = c.getSimpleName
 
-    def setLevelDebug { _level = Debug }
-    def setLevelInfo { _level = Info }
-    def setLevelWarn { _level = Warn }
-    def setLevelError { _level = Error }
+    private var level: Int = Debug
 
-    def isErrorEnabled(): Boolean = _level <= Error
-    def isWarnEnabled(): Boolean = _level <= Warn
-    def isInfoEnabled(): Boolean = _level <= Info
-    def isDebugEnabled(): Boolean = _level <= Debug
+    def setLevelDebug { level = Debug }
+    def setLevelInfo { level = Info }
+    def setLevelWarn { level = Warn }
+    def setLevelError { level = Error }
 
-    def log(level: String, message: String) =
-      Console.err.println(Util.nowForLogging + " " + level + " " + message)
+    def isErrorEnabled(): Boolean = level <= Error
+    def isWarnEnabled(): Boolean = level <= Warn
+    def isInfoEnabled(): Boolean = level <= Info
+    def isDebugEnabled(): Boolean = level <= Debug
+
+    def log(what: String, message: String) =
+      Console.err.println(Util.nowForLogging + " " + what + " " + className + " - " + message)
 
     def warn(s: String) = log("WARN", s)
     def error(s: String) = log("ERROR", s)
@@ -43,52 +46,41 @@ object Logging {
     def debug(s: String) = log("DEBUG", s)
   }
 
-  def defaultLogger = try
-    Class.forName("org.slf4j.LoggerFactory").getMethod("getLogger", classOf[Class[_]]).
-      invoke(null, this.getClass).asInstanceOf[Logging.GenericLogger]
-  catch {
-    case _ => new BasicLogger(Debug): Logging.GenericLogger
-  }
+  type LoggerCreator = Class[_] => GenericLogger
 
-  private var _logger: Logging.GenericLogger = defaultLogger
+  private var loggerCreator: LoggerCreator = c => new BasicLogger(c)
 
-  def logger = _logger
-
-  def logger_=(newLogger: Logging.GenericLogger) = {
-    if (newLogger == null)
-      Errors.badValue(newLogger)
-    _logger = newLogger
-  }
+  def setLogger(c: LoggerCreator) { loggerCreator = c }
 }
 
 trait Logging {
 
-  import Logging._
+  private val logger = Logging.loggerCreator(this.getClass)
 
   protected def fmtParams(params: Seq[LoggingParameter]) = LoggingParameter.safeFormat(params)
 
   def logError(params: LoggingParameter*) {
-    if (_logger.isErrorEnabled)
-      _logger.error(fmtParams(params))
+    if (logger.isErrorEnabled)
+      logger.error(fmtParams(params))
   }
 
   def logError(e: Throwable, withStackTrace: Boolean = true) {
-    if (_logger.isErrorEnabled)
-      _logger.error(Errors.formatException(e, withStackTrace))
+    if (logger.isErrorEnabled)
+      logger.error(Errors.formatException(e, withStackTrace))
   }
 
   def logWarn(params: LoggingParameter*) {
-    if (_logger.isWarnEnabled)
-      _logger.warn(fmtParams(params))
+    if (logger.isWarnEnabled)
+      logger.warn(fmtParams(params))
   }
 
   def logInfo(params: LoggingParameter*) {
-    if (_logger.isInfoEnabled)
-      _logger.info(fmtParams(params))
+    if (logger.isInfoEnabled)
+      logger.info(fmtParams(params))
   }
 
   def logDebug(params: LoggingParameter*) {
-    if (_logger.isDebugEnabled)
-      _logger.debug(fmtParams(params))
+    if (logger.isDebugEnabled)
+      logger.debug(fmtParams(params))
   }
 }
