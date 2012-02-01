@@ -30,7 +30,7 @@ object I18nLocale {
 // A helper I18nLocale class to increase the basic functionality of the Java Locale class.
 // We also insure that the passed Locale is valid. The Java constructor allows any kind
 // of junk to be entered in the Locale.
-private[core] class I18nLocale(_locale: Locale) {
+class I18nLocale(_locale: Locale) {
 
   val locale = Errors.trap("Invalid input Locale _." << _locale) {
     def normalize(s: String) = if (s == null) "" else s.trim

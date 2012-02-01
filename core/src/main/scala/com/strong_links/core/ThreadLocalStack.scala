@@ -2,7 +2,7 @@ package com.strong_links.core
 
 class ThreadLocalStack[T] {
 
-  private val value = new ThreadLocal[T]
+  private val value = new InheritableThreadLocal[T]
 
   def using[R](newValue: T)(code: => R): R = {
     val previousValue = value.get

@@ -29,8 +29,6 @@ package object core {
     new FileLoggingParameter(f)
   }
 
-  object userI18nLocale extends ThreadLocalStack[I18nLocale]
-
   implicit def stringToStringGeneralString(s: String): GeneralString = {
     new StringGeneralString(s)
   }

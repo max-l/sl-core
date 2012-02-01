@@ -6,7 +6,7 @@ protected class I18n(catalog: I18nCatalog, val msgCtxt: String, val msgid: Strin
 
   def toString(i18nLocale: I18nLocale) = catalog.translate(this, i18nLocale)
 
-  override def toString = toString(userI18nLocale.getOrElse(I18nLocale.system))
+  override def toString = toString(I18nLocale.system)
 
   def <<(args: Any*) = new PluggedI18n(this, Some(args), false)
 
@@ -15,8 +15,11 @@ protected class I18n(catalog: I18nCatalog, val msgCtxt: String, val msgid: Strin
 
 class PluggedI18n(i18n: I18n, args: Option[Seq[Any]], quotedDefault: Boolean) {
 
-  override def toString = toString(false, quotedDefault)
+  override def toString = toString(I18nLocale.system, false, quotedDefault)
 
-  def toString(failsafe: Boolean, quoted: Boolean) = PluggedArguments.format(i18n.toString, args, failsafe, quoted)
+  def toString(i18nLocale: I18nLocale): String = toString(i18nLocale, false, quotedDefault)
+
+  def toString(i18nLocale: I18nLocale, failsafe: Boolean, quoted: Boolean): String =
+    PluggedArguments.format(i18n.toString(i18nLocale), args, failsafe, quoted)
 }
 

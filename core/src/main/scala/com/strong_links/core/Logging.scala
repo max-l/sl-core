@@ -4,6 +4,11 @@ import LoggingParameter._
 
 object Logging {
 
+  val Debug = 1
+  val Info = 2
+  val Warn = 3
+  val Error = 4
+
   type GenericLogger = {
     def isErrorEnabled(): Boolean
     def isDebugEnabled(): Boolean
@@ -15,87 +20,75 @@ object Logging {
     def debug(s: String): Unit
   }
 
-  private val overrider = new ThreadLocalStack[GenericLogger]
+  class BasicLogger(startLevel: Int) {
 
-  def using[R](logger: GenericLogger)(code: => R): R =
-    overrider.using(logger)(code)
-}
+    private var _level: Int = startLevel
 
-object BasicLogger {
+    def setLevelDebug { _level = Debug }
+    def setLevelInfo { _level = Info }
+    def setLevelWarn { _level = Warn }
+    def setLevelError { _level = Error }
 
-  var preferred = false
+    def isErrorEnabled(): Boolean = _level <= Error
+    def isWarnEnabled(): Boolean = _level <= Warn
+    def isInfoEnabled(): Boolean = _level <= Info
+    def isDebugEnabled(): Boolean = _level <= Debug
 
-  private val Debug = 1
-  private val Info = 2
-  private val Warn = 3
-  private val Error = 4
+    def log(level: String, message: String) =
+      Console.err.println(Util.nowForLogging + " " + level + " " + message)
 
-  private var _level: Int = Debug
+    def warn(s: String) = log("WARN", s)
+    def error(s: String) = log("ERROR", s)
+    def info(s: String) = log("INFO", s)
+    def debug(s: String) = log("DEBUG", s)
+  }
 
-  def setLevelDebug { _level = Debug }
-  def setLevelInfo { _level = Info }
-  def setLevelWarn { _level = Warn }
-  def setLevelError { _level = Error }
+  def defaultLogger = try
+    Class.forName("org.slf4j.LoggerFactory").getMethod("getLogger", classOf[Class[_]]).
+      invoke(null, this.getClass).asInstanceOf[Logging.GenericLogger]
+  catch {
+    case _ => new BasicLogger(Debug): Logging.GenericLogger
+  }
 
-  def isErrorEnabled(): Boolean = _level <= Error
-  def isWarnEnabled(): Boolean = _level <= Warn
-  def isInfoEnabled(): Boolean = _level <= Info
-  def isDebugEnabled(): Boolean = _level <= Debug
+  private var _logger: Logging.GenericLogger = defaultLogger
 
-  def log(level: String, message: String) =
-    Console.err.println(Util.nowForLogging + " " + level + " " + message)
+  def logger = _logger
 
-  def warn(s: String) = log("WARN", s)
-  def error(s: String) = log("ERROR", s)
-  def info(s: String) = log("INFO", s)
-  def debug(s: String) = log("DEBUG", s)
+  def logger_=(newLogger: Logging.GenericLogger) = {
+    if (newLogger == null)
+      Errors.badValue(newLogger)
+    _logger = newLogger
+  }
 }
 
 trait Logging {
 
-  // We favorize slf4j, but if it is not in scope, we use our basic logger.
-  private lazy val defaultLogger: Logging.GenericLogger =
-    if (BasicLogger.preferred)
-      BasicLogger: Logging.GenericLogger
-    else try
-      Class.forName("org.slf4j.LoggerFactory").getMethod("getLogger", classOf[Class[_]]).
-        invoke(null, this.getClass).asInstanceOf[Logging.GenericLogger]
-    catch {
-      case _ => BasicLogger: Logging.GenericLogger
-    }
-
-  protected def actualLogger = Logging.overrider.getOrElse(defaultLogger)
+  import Logging._
 
   protected def fmtParams(params: Seq[LoggingParameter]) = LoggingParameter.safeFormat(params)
 
   def logError(params: LoggingParameter*) {
-    val l = actualLogger
-    if (l.isErrorEnabled)
-      l.error(fmtParams(params))
+    if (_logger.isErrorEnabled)
+      _logger.error(fmtParams(params))
   }
 
   def logError(e: Throwable, withStackTrace: Boolean = true) {
-    val l = actualLogger
-    if (l.isErrorEnabled)
-      l.error(Errors.formatException(e, withStackTrace))
+    if (_logger.isErrorEnabled)
+      _logger.error(Errors.formatException(e, withStackTrace))
   }
 
   def logWarn(params: LoggingParameter*) {
-    val l = actualLogger
-    if (l.isWarnEnabled)
-      l.warn(fmtParams(params))
+    if (_logger.isWarnEnabled)
+      _logger.warn(fmtParams(params))
   }
 
   def logInfo(params: LoggingParameter*) {
-    val l = actualLogger
-    if (l.isInfoEnabled)
-      l.info(fmtParams(params))
+    if (_logger.isInfoEnabled)
+      _logger.info(fmtParams(params))
   }
 
   def logDebug(params: LoggingParameter*) {
-    val l = actualLogger
-    if (l.isDebugEnabled)
-      l.debug(fmtParams(params))
+    if (_logger.isDebugEnabled)
+      _logger.debug(fmtParams(params))
   }
 }
-
