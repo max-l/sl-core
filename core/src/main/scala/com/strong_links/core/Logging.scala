@@ -21,9 +21,48 @@ object Logging {
     overrider.using(logger)(code)
 }
 
+object BasicLogger {
+
+  var preferred = false
+
+  private val Debug = 1
+  private val Info = 2
+  private val Warn = 3
+  private val Error = 4
+
+  private var _level: Int = Debug
+
+  def setLevelDebug { _level = Debug }
+  def setLevelInfo { _level = Info }
+  def setLevelWarn { _level = Warn }
+  def setLevelError { _level = Error }
+
+  def isErrorEnabled(): Boolean = _level <= Error
+  def isWarnEnabled(): Boolean = _level <= Warn
+  def isInfoEnabled(): Boolean = _level <= Info
+  def isDebugEnabled(): Boolean = _level <= Debug
+
+  def log(level: String, message: String) =
+    Console.err.println(Util.nowForLogging + " " + level + " " + message)
+
+  def warn(s: String) = log("WARN", s)
+  def error(s: String) = log("ERROR", s)
+  def info(s: String) = log("INFO", s)
+  def debug(s: String) = log("DEBUG", s)
+}
+
 trait Logging {
 
-  private lazy val defaultLogger: Logging.GenericLogger = org.slf4j.LoggerFactory.getLogger(this.getClass)
+  // We favorize slf4j, but if it is not in scope, we use our basic logger.
+  private lazy val defaultLogger: Logging.GenericLogger =
+    if (BasicLogger.preferred)
+      BasicLogger: Logging.GenericLogger
+    else try
+      Class.forName("org.slf4j.LoggerFactory").getMethod("getLogger", classOf[Class[_]]).
+        invoke(null, this.getClass).asInstanceOf[Logging.GenericLogger]
+    catch {
+      case _ => BasicLogger: Logging.GenericLogger
+    }
 
   protected def actualLogger = Logging.overrider.getOrElse(defaultLogger)
 

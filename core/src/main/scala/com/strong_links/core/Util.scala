@@ -13,6 +13,7 @@ object Util {
   private lazy val sdf1 = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
   private lazy val sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
   private lazy val sdf3 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ")
+  private lazy val sdf4 = new SimpleDateFormat("HH:mm:ss:SSS")
 
   def nowAsStringRaw: String = {
     sdf1.format(getTime)
@@ -24,6 +25,10 @@ object Util {
 
   def nowAsStringWithTimeDelta: String = {
     sdf3.format(getTime)
+  }
+
+  def nowForLogging: String = {
+    sdf4.format(getTime)
   }
 
   def withStringBuilder(f: StringBuilder => Unit): String = {
