@@ -1,16 +1,15 @@
 package com.strong_links.core
 
-class I18nLocalization(val packageName: String, val packageNameSegments: List[String],
-  val i18nConfigLocalization: I18nConfigLocalization, val parent: Option[I18nLocalization]) {
+class I18nLocalization(val i18nCatalog: I18nCatalog, val i18nLocale: I18nLocale, val parent: Option[I18nLocalization]) {
 
-  val className = i18nConfigLocalization.classNameFor(packageNameSegments)
+  val className = (i18nLocale.key :: i18nCatalog.i18nConfig.packageNameSegments).mkString("_")
 
-  val fqn = (packageNameSegments :+ className).mkString(".")
+  val fqn = (i18nCatalog.i18nConfig.packageNameSegments :+ className).mkString(".")
 
   // Keep an internal less safe reference to the parent as this will be faster at run-time.
   private val _parent = parent match { case None => null; case Some(p) => p }
 
-  private val dynamicClass = Errors.trap("Can't dynamically load class _." << fqn) {
+  private val dynamicClass = Errors.trap("Can't dynamically load class _ for localization _." << (fqn, i18nLocale.key)) {
     Class.forName(fqn).newInstance.asInstanceOf[{
       val languageKey: String
       val nbEntries: Int
@@ -24,10 +23,10 @@ class I18nLocalization(val packageName: String, val packageNameSegments: List[St
     }]
   }
 
-  if (dynamicClass.languageKey != i18nConfigLocalization.i18nLocale.key)
-    Errors.fatal("Invalid localization _ for class _ ; _ was expected." << (dynamicClass.languageKey, fqn, i18nConfigLocalization.i18nLocale.key))
+  if (dynamicClass.languageKey != i18nLocale.key)
+    Errors.fatal("Invalid localization _ for class _ ; _ was expected." << (dynamicClass.languageKey, fqn, i18nLocale.key))
 
-  override def toString = i18nConfigLocalization.toString
+  override def toString = i18nLocale.key
 
   def gettext(key: String): String = {
     val translation = dynamicClass.gettext(key)

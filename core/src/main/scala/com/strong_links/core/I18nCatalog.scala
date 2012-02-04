@@ -1,45 +1,26 @@
 package com.strong_links.core
 
-class I18nCatalog(packageName: String, i18nKnownLocalization: I18nKnownLocalization,
-  masters: Seq[I18nConfigLocalization] = Nil, subs: Seq[I18nConfigLocalization] = Nil) {
+class I18nCatalog(val i18nConfig: I18nConfig) {
 
-  private val packageNameSegments = I18nConfig.toPackageSegments(packageName)
+  private var map = Map[String, I18nLocalization]()
 
-  private val codeUsePlural = i18nKnownLocalization.rule
-  private val codeKey = i18nKnownLocalization.i18nLocale.key
-
-  private val map = {
-
-    val t = scala.collection.mutable.Map[String, I18nLocalization]()
-
-    def addTuple(i18nConfigLocalization: I18nConfigLocalization, parent: Option[I18nLocalization]) =
-      t += (i18nConfigLocalization.i18nLocale.key -> new I18nLocalization(packageName, packageNameSegments, i18nConfigLocalization, parent))
-
-    for (m <- masters)
-      m.parentLocale match {
-        case None =>
-          addTuple(m, None)
-        case Some(pl) =>
-          Errors.fatal("Master config localization _ has a parent _." << (m, pl))
-      }
-
-    for (s <- subs)
-      (s.parentLocale match {
-        case None =>
-          Errors.fatal("Sub config localization _ does not have a parent." << s)
-        case Some(pl) =>
-          t.get(pl.i18nLocale.key)
-      }) match {
-        case None =>
-          Errors.fatal("Parent localization _ not found for sub config localization _." << (s.parentLocale, s))
-        case parent =>
-          addTuple(s, parent)
-      }
-
-    t.toMap
+  def loadChainedLocalization(chain: List[Option[I18nLocale]]): Option[I18nLocalization] = chain match {
+    case List(None) => None
+    case Some(head) :: rest => Some(new I18nLocalization(this, head, loadChainedLocalization(rest)))
+    case _ => Errors.fatal("Invalid chain _." << chain)
   }
 
-  val noLocalizations = map.isEmpty
+  def getLocalizationFor(i18nLocale: I18nLocale) = map.getOrElse(i18nLocale.key, {
+    val chain = i18nConfig.getLocalizations(i18nLocale).spy
+    loadChainedLocalization(chain) match {
+      case Some(x) => map += (i18nLocale.key -> x); x
+      case None => Errors.fatal("No localization loaded for locale _." << i18nLocale)
+    }
+  })
+
+  // Helpers for faster translation.
+  private val codeUsePlural = i18nConfig.i18nCodeLocalization.rule
+  private val codeKey = i18nConfig.i18nCodeLocalization.i18nLocale.key
 
   def translate(i18n: I18n, i18nLocale: I18nLocale) = {
 
@@ -48,26 +29,22 @@ class I18nCatalog(packageName: String, i18nKnownLocalization: I18nKnownLocalizat
     def default = {
       val x = if (n == Int.MaxValue) msgid else if (codeUsePlural(n)) msgidPlural else msgid
       if (x == null)
-        Errors.fatal("Default translation failed on _, _, _." << (msgCtxt, msgid, msgidPlural))
+        Errors.fatal("Default translation failed with null on _, _, _." << (msgCtxt, msgid, msgidPlural))
       x
     }
 
-    if (noLocalizations || (i18nLocale.key eq codeKey))
+    if (i18nLocale.key eq codeKey)
       default
     else {
-      val i18nLocalization = map.getOrElse(i18nLocale.key, null)
-      if (i18nLocalization == null)
+      val i18nLocalization = getLocalizationFor(i18nLocale)
+      val translation = if (n == Int.MaxValue)
+        i18nLocalization.gettext(key)
+      else
+        i18nLocalization.ngettext(key, n)
+      if (translation == null)
         default
-      else {
-        val translation = if (n == Int.MaxValue)
-          i18nLocalization.gettext(key)
-        else
-          i18nLocalization.ngettext(key, n)
-        if (translation == null)
-          default
-        else
-          translation
-      }
+      else
+        translation
     }
   }
 }

@@ -35,8 +35,16 @@ object I18nConfig {
     s
   }
 
-  def toLocaleSeq(specifications: String) =
-    Util.split(specifications, ",").map(_.trim).filter(!_.isEmpty).map(k => I18nLocale.from(k).locale).toSeq
+  private def splitAndclean(specifications: String) = Util.split(specifications, ",").map(_.trim).filter(!_.isEmpty)
+
+  private def toLocale(key: String) = I18nLocale.from(key).locale
+
+  def toLocaleSeq(specifications: String) = splitAndclean(specifications).map(toLocale).toSeq
+
+  def toMappings(specifications: String) = (for (
+    p <- splitAndclean(specifications);
+    (from, to) = Util.splitTwoTrimmed(p, "->")
+  ) yield toLocale(from) -> toLocale(to)).toMap
 }
 
 class I18nConfigLocalization(val i18nLocale: I18nLocale, val parentLocale: Option[I18nConfigLocalization]) {
@@ -50,90 +58,115 @@ class I18nConfigLocalization(val i18nLocale: I18nLocale, val parentLocale: Optio
     (i18nLocale.key :: packageNameSegments).mkString("_")
 }
 
-class I18nConfig(val packageName: String, val i18nKnownLocalization: I18nKnownLocalization,
-  val masterLocales: Seq[Locale] = Nil, val subLocales: Seq[Locale] = Nil) {
+class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nKnownLocalization,
+  fullLocales: Seq[Locale] = Nil, deltaLocales: Seq[Locale] = Nil, _mappings: Map[Locale, Locale] = Map()) {
 
-  def this(packageName: String, codeKey: String, masterKeys: String = "", subKeys: String = "") =
-    this(packageName, I18nKnownLocalization.get(codeKey), I18nConfig.toLocaleSeq(masterKeys), I18nConfig.toLocaleSeq(subKeys))
-
-  def serialize = {
-    def q(s: String) = "\"" + s.replace("\"", "\\\"") + "\""
-    def x(l: Seq[Locale]) = q(l.map(_.toString).mkString(","))
-    List(q(packageName), q(i18nKnownLocalization.i18nLocale.key), x(masterLocales), x(subLocales)).mkString((", "))
-  }
+  def this(packageName: String, codeKey: String, masterKeys: String = "", subKeys: String = "", mappings: String = "") =
+    this(packageName, I18nKnownLocalization.get(codeKey),
+      I18nConfig.toLocaleSeq(masterKeys), I18nConfig.toLocaleSeq(subKeys),
+      I18nConfig.toMappings(mappings))
 
   val packageNameSegments = I18nConfig.toPackageSegments(packageName)
 
-  val (masterConfigLocalizations, subConfigLocalizations) = {
+  val fullI18nLocales = fullLocales.toList.map(I18nLocale.apply).sorted
 
-    val i18nLocaleComparer = new Ordering[I18nLocale] {
-      def compare(a: I18nLocale, b: I18nLocale): Int = a compare b
-    }
+  val deltaI18nLocales = deltaLocales.toList.map(I18nLocale.apply).sorted
 
-    val masterI18nLocales = masterLocales.map(I18nLocale.apply).toList.sorted(i18nLocaleComparer)
-    val subI18nLocales = subLocales.map(I18nLocale.apply).toList.sorted(i18nLocaleComparer)
+  def externalI18nLocales = fullI18nLocales ::: deltaI18nLocales
 
-    val codeI18nLocale = I18nLocale(i18nKnownLocalization.locale)
-    val codeI18nConfigLocalization = new I18nConfigLocalization(codeI18nLocale, None)
+  private val allI18nLocales = i18nCodeLocalization.i18nLocale :: externalI18nLocales
 
-    val groups = (codeI18nLocale +: (masterI18nLocales union subI18nLocales)).groupBy(_.key).toList
-    groups.filter(_._2.length > 1).map(_._1) match {
-      case Nil =>
-      case duplicates => Errors.fatal("These duplicate locales have been provided: _" << duplicates)
-    }
+  val mappingsList = _mappings.toList.map(e => (I18nLocale(e._1), I18nLocale(e._2))).sorted
+  val mappings = mappingsList.toMap
 
-    val masters = masterI18nLocales.map(loc => new I18nConfigLocalization(loc, None))
-
-    type Parent = (I18nLocale, Int, I18nConfigLocalization)
-    val SubWeight = 0
-    val CodeWeight = 1
-    val MasterWeight = 2
-
-    def makePossibleParents(i18nLocale: Option[I18nLocale], weight: Int, i18nConfigLocalization: I18nConfigLocalization): List[Parent] = i18nLocale match {
-      case None => Nil
-      case Some(loc) =>
-        (loc, weight, i18nConfigLocalization) +: makePossibleParents(loc.down, weight, i18nConfigLocalization)
-    }
-
-    def cmp(x: Parent, y: Parent) = {
-      val (loc1, w1, c1) = x
-      val (loc2, w2, c2) = y
-      ((loc1 compare loc2) match {
-        case 0 => w1 compare w2
-        case x => -x
-      }) < 0
-    }
-
-    var possibleParents = (makePossibleParents(Some(codeI18nLocale), CodeWeight, codeI18nConfigLocalization) :::
-      masters.flatMap(m => makePossibleParents(Some(m.i18nLocale), MasterWeight, m))).sortWith(cmp)
-
-    def searchParent(i18nLocale: Option[I18nLocale]): Option[I18nConfigLocalization] = i18nLocale match {
-      case None => None
-      case Some(loc) => possibleParents.find(loc == _._1) match {
-        case None => searchParent(loc.down)
-        case Some(x) => Some(x._3)
-      }
-    }
-
-    val subs = subI18nLocales.sortWith(I18nLocale.sort).map(loc => {
-      val x = searchParent(loc.down) match {
-        case None => Errors.fatal("No parent localization found for _." << loc)
-        case Some(parent) if parent == codeI18nConfigLocalization =>
-          new I18nConfigLocalization(loc, None)
-        case Some(parent) => {
-          new I18nConfigLocalization(loc, Some(parent))
-        }
-      }
-      // Once a sub has been resolved, it can also be the parent of another sub.
-      possibleParents +:= (loc, SubWeight, x)
-      x
-    })
-
-    (masters, subs)
+  // Ensure that no mapping is duplicated.
+  mappingsList.groupBy(_._1).filter(_._2.length > 1).map(_._1) match {
+    case Nil =>
+    case dups => Errors.fatal("Duplicate mappings _." << dups)
   }
 
-  def toCatalog = new I18nCatalog(packageName, i18nKnownLocalization, masterConfigLocalizations, subConfigLocalizations)
+  // Ensure that no mapping source is already known.
+  mappingsList.map(_._1).filter(e => allI18nLocales.exists(_ == e)) match {
+    case Nil =>
+    case list => Errors.fatal("Invalid mapping sources _." << list)
+  }
 
-  def allLocalizations = masterConfigLocalizations ::: subConfigLocalizations
+  // Ensure that all mapping targets are known.
+  mappingsList.map(_._2).filterNot(e => allI18nLocales.exists(_ == e)) match {
+    case Nil =>
+    case list => Errors.fatal("Unknown mapping targets _." << list)
+  }
+
+  def serialize = {
+    def q(s: String) = "\"" + s.replace("\"", "\\\"") + "\""
+    def x(l: Seq[I18nLocale]) = q(l.map(_.key).mkString(","))
+    def z(l: List[(I18nLocale, I18nLocale)]) = q(l.map(e => e._1.key + "->" + e._2.key).mkString(","))
+    List(q(packageName), q(i18nCodeLocalization.i18nLocale.key),
+      x(fullI18nLocales), x(deltaI18nLocales), z(mappingsList)).mkString((", "))
+  }
+
+  def resolve(optionI18nLocale: Option[I18nLocale]): Option[I18nLocale] =
+    optionI18nLocale match {
+      case None => None
+      case Some(i18nLocale) =>
+        if (i18nLocale == i18nCodeLocalization.i18nLocale)
+          None
+        else if (externalI18nLocales.contains(i18nLocale))
+          Some(i18nLocale)
+        else
+          mappings.get(i18nLocale) match {
+            case None => resolve(i18nLocale.down)
+            case target => resolve(target)
+          }
+    }
+
+  def getLocalizations(i18nLocale: I18nLocale) = {
+    var previousSet = false
+    var previous: Option[I18nLocale] = None
+    def makeChain(optionI18nLocale: Option[I18nLocale]): List[Option[I18nLocale]] = resolve(optionI18nLocale) match {
+      case None => Nil
+      case Some(x) => Some(x) :: makeChain(x.down)
+    }
+    val r = makeChain(Some(i18nLocale)) :+ None
+    val list = for (
+      e <- r if !previousSet || e != previous
+    ) yield {
+      previousSet = true
+      previous = e
+      e
+    }
+    if (list != list.distinct)
+      Errors.fatal("Bad logic, list = _, list.distinct = _" << (list, list.distinct))
+    if (list.last != None)
+      Errors.fatal("Bad logic, list _ does not end with None (meaning code localization)." << list)
+    list
+  }
+
+  showConfig
+
+  def showConfig {
+
+    def fmtTarget(targetI18nLocale: Option[I18nLocale]) = targetI18nLocale match {
+      case None => i18nCodeLocalization.i18nLocale.key + " (code)"
+      case Some(x) => x.key
+    }
+
+    def getLocalizationsFmt(i18nLocale: I18nLocale) = {
+      getLocalizations(i18nLocale).map(fmtTarget)
+    }
+
+    def fmtList(list: List[I18nLocale]) = if (list == Nil) List("None") else list.map(_.key)
+
+    println
+    println("Configuration for package _" <<< packageName)
+    println("  Code locale: _" <<< i18nCodeLocalization.i18nLocale.key)
+    println("  Full locales: _" <<< fmtList(fullI18nLocales))
+    println("  Delta locales: _" <<< fmtList(deltaI18nLocales))
+    println("  Mappings")
+    mappingsList.foreach(m => println("    - _ maps to _" <<< (m._1, m._2)))
+    println("  Catalog resolutions")
+    val localesToResolve = (allI18nLocales ::: mappingsList.map(_._1)).sorted
+    localesToResolve.foreach(r => println("    - Locale _ would use the chained localizations _" <<< (r, getLocalizationsFmt(r))))
+  }
 }
 

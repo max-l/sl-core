@@ -5,6 +5,10 @@ import java.io.File
 
 package object core {
 
+  implicit val i18nLocaleComparer = new Ordering[I18nLocale] {
+    def compare(a: I18nLocale, b: I18nLocale): Int = a compare b
+  }
+
   implicit def stringToPluggableString(s: String) = {
     new PluggableString(s)
   }
@@ -60,4 +64,13 @@ package object core {
     new I18n(catalog, msgCtxt, msgid, msgid, n)
 
   implicit def doubleToDoubleFormatter(d: Double) = new DoubleFormatter(d)
+
+  class wrapper[R](r: R) {
+    def spy = {
+      Console.err.println("Spy: _" << r)
+      r
+    }
+  }
+
+  implicit def anyToWrapper[R](r: R) = new wrapper[R](r)
 }

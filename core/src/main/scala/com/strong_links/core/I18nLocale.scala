@@ -57,11 +57,6 @@ class I18nLocale(_locale: Locale) {
     case _ => true
   }
 
-  val levels = {
-    def x(s: String) = if (d(s)) 1 else 0
-    x(locale.getLanguage) + x(locale.getCountry) + x(locale.getVariant)
-  }
-
   override def toString = key
 
   override def equals(that: Any) = that match {
@@ -71,10 +66,7 @@ class I18nLocale(_locale: Locale) {
 
   override def hashCode = key.hashCode
 
-  def compare(that: I18nLocale): Int = (this.levels compare that.levels) match {
-    case 0 => this.key compare that.key
-    case x => x
-  }
+  def compare(that: I18nLocale): Int = this.key compare that.key
 
   def down = if (d(locale.getVariant))
     Some(I18nLocale(new Locale(locale.getLanguage, locale.getCountry)))
@@ -82,5 +74,15 @@ class I18nLocale(_locale: Locale) {
     Some(I18nLocale(new Locale(locale.getLanguage)))
   else
     None
+
+  def toChain = {
+    def follow(optionI18nLocale: Option[I18nLocale]): List[I18nLocale] = optionI18nLocale match {
+      case Some(x) => x :: follow(x.down)
+      case None => Nil
+    }
+    this :: follow(this.down)
+  }
+
+  def classNameFor(packageNameSegments: List[String]) = (key :: packageNameSegments).mkString("_")
 }
 
