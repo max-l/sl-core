@@ -2,22 +2,22 @@ package com.strong_links.core
 
 import java.util.Locale
 
-class I18nKnownLocalization(val locale: Locale, val rule: (Int) => Boolean, val poRule: String) {
+class I18nStock(locale: Locale, val rule: (Int) => Boolean, val poRule: String) {
 
   val i18nLocale = I18nLocale(locale)
 
-  def cloneFor(locale: Locale): I18nKnownLocalization = {
+  def cloneFor(locale: Locale): I18nStock = {
     if (this.locale.getLanguage != locale.getLanguage)
       Errors.fatal("Known localization _ and provided localization _ have different languages _ and _." <<
         (this.locale, locale, this.locale.getLanguage, locale.getLanguage))
-    new I18nKnownLocalization(locale, rule, poRule)
+    new I18nStock(locale, rule, poRule)
   }
 
-  def cloneFor(languageKey: String): I18nKnownLocalization = cloneFor(I18nLocale.from(languageKey).locale)
+  def cloneFor(languageKey: String): I18nStock = cloneFor(I18nLocale.from(languageKey).locale)
 }
 
 // Thanks to people behind "http://translate.sourceforge.net/wiki/l10n/pluralforms"
-object I18nKnownLocalization {
+object I18nStock {
 
   val rule00 = ((n: Int) => false, "nplurals=1; plural=0")
   val rule01 = ((n: Int) => n > 1, "nplurals=2; plural=n > 1")
@@ -49,7 +49,7 @@ object I18nKnownLocalization {
     "dz" -> rule00,
     "el" -> rule02,
     "en" -> rule02,
-    "en_UK" -> rule02,
+    "en_GB" -> rule02,
     "en_US" -> rule02,
     "eo" -> rule02,
     "es" -> rule02,
@@ -146,19 +146,14 @@ object I18nKnownLocalization {
 
   def get(key: String) = map.get(key) match {
     case None => Errors.fatal("Localization _ is unknown." << key)
-    case Some(x) => new I18nKnownLocalization(I18nLocale.from(key).locale, x._1, x._2)
+    case Some(x) => new I18nStock(I18nLocale.from(key).locale, x._1, x._2)
   }
 
-  def getBest(key: String): Option[I18nKnownLocalization] = {
-    var loc: Option[I18nLocale] = Some(I18nLocale.from(key))
-    var results: Option[I18nKnownLocalization] = None
-    while (loc != None && results == None)
-      if (map.contains(loc.get.key))
-        results = Some(get(loc.get.key))
-      else
-        loc = loc.get.down
-    return results
-  }
+  def getBest(i18nLocale: I18nLocale): Option[I18nStock] =
+    i18nLocale.toChain.map(_.key).find(map.contains) match {
+      case None => None
+      case Some(key) => Some(get(key))
+    }
 
   def ach = get("ach")
   def af = get("af")
@@ -183,7 +178,7 @@ object I18nKnownLocalization {
   def dz = get("dz")
   def el = get("el")
   def en = get("en")
-  def en_UK = get("en_UK")
+  def en_GB = get("en_GB")
   def en_US = get("en_US")
   def eo = get("eo")
   def es = get("es")

@@ -47,24 +47,24 @@ object I18nConfig {
   ) yield toLocale(from) -> toLocale(to)).toMap
 }
 
-class I18nConfigLocalization(val i18nLocale: I18nLocale, val parentLocale: Option[I18nConfigLocalization]) {
-
-  override def toString = parentLocale match {
-    case None => i18nLocale.toString
-    case Some(pl) => i18nLocale + ":" + pl
-  }
-
-  def classNameFor(packageNameSegments: List[String]) =
-    (i18nLocale.key :: packageNameSegments).mkString("_")
-}
-
-class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nKnownLocalization,
-  fullLocales: Seq[Locale] = Nil, deltaLocales: Seq[Locale] = Nil, _mappings: Map[Locale, Locale] = Map()) {
+class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
+  fullLocales: Seq[Locale], deltaLocales: Seq[Locale], _mappings: Map[Locale, Locale]) {
 
   def this(packageName: String, codeKey: String, masterKeys: String = "", subKeys: String = "", mappings: String = "") =
-    this(packageName, I18nKnownLocalization.get(codeKey),
+    this(packageName, I18nStock.get(codeKey),
       I18nConfig.toLocaleSeq(masterKeys), I18nConfig.toLocaleSeq(subKeys),
       I18nConfig.toMappings(mappings))
+
+  def this(packageName: String, i18nCodeLocalization: I18nStock,
+    fullLocales: Seq[Locale], deltaLocales: Seq[Locale]) =
+    this(packageName, i18nCodeLocalization, fullLocales, deltaLocales, Map[Locale, Locale]())
+
+  def this(packageName: String, i18nCodeLocalization: I18nStock,
+    fullLocales: Seq[Locale]) =
+    this(packageName, i18nCodeLocalization, fullLocales, Seq[Locale](), Map[Locale, Locale]())
+
+  def this(packageName: String, i18nCodeLocalization: I18nStock) =
+    this(packageName, i18nCodeLocalization, Seq[Locale](), Seq[Locale](), Map[Locale, Locale]())
 
   val packageNameSegments = I18nConfig.toPackageSegments(packageName)
 
@@ -142,8 +142,6 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nKnownLoc
     list
   }
 
-  showConfig
-
   def showConfig {
 
     def fmtTarget(targetI18nLocale: Option[I18nLocale]) = targetI18nLocale match {
@@ -155,15 +153,16 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nKnownLoc
       getLocalizations(i18nLocale).map(fmtTarget)
     }
 
-    def fmtList(list: List[I18nLocale]) = if (list == Nil) List("None") else list.map(_.key)
+    def fmtList(list: List[I18nLocale]): String = if (list == Nil) "None" else "_" <<< list
+    def fmtMap(list: List[String]): String = if (list == Nil) "None" else "_" << list
 
     println
     println("Configuration for package _" <<< packageName)
     println("  Code locale: _" <<< i18nCodeLocalization.i18nLocale.key)
-    println("  Full locales: _" <<< fmtList(fullI18nLocales))
-    println("  Delta locales: _" <<< fmtList(deltaI18nLocales))
-    println("  Mappings")
-    mappingsList.foreach(m => println("    - _ maps to _" <<< (m._1, m._2)))
+    println("  Full locales: _" << fmtList(fullI18nLocales))
+    println("  Delta locales: _" << fmtList(deltaI18nLocales))
+    def fmtTuple(t: (I18nLocale, I18nLocale)): String = "_ -> _" <<< (t._1, t._2)
+    println("  Mappings: _" << fmtMap(mappingsList.map(fmtTuple)))
     println("  Catalog resolutions")
     val localesToResolve = (allI18nLocales ::: mappingsList.map(_._1)).sorted
     localesToResolve.foreach(r => println("    - Locale _ would use the chained localizations _" <<< (r, getLocalizationsFmt(r))))

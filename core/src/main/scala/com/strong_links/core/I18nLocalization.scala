@@ -1,13 +1,10 @@
 package com.strong_links.core
 
-class I18nLocalization(val i18nCatalog: I18nCatalog, val i18nLocale: I18nLocale, val parent: Option[I18nLocalization]) {
+class I18nLocalization(val i18nCatalog: I18nCatalog, val i18nLocale: I18nLocale, val parent: I18nLocalization) {
 
   val className = (i18nLocale.key :: i18nCatalog.i18nConfig.packageNameSegments).mkString("_")
 
   val fqn = (i18nCatalog.i18nConfig.packageNameSegments :+ className).mkString(".")
-
-  // Keep an internal less safe reference to the parent as this will be faster at run-time.
-  private val _parent = parent match { case None => null; case Some(p) => p }
 
   private val dynamicClass = Errors.trap("Can't dynamically load class _ for localization _." << (fqn, i18nLocale.key)) {
     Class.forName(fqn).newInstance.asInstanceOf[{
@@ -31,10 +28,10 @@ class I18nLocalization(val i18nCatalog: I18nCatalog, val i18nLocale: I18nLocale,
   def gettext(key: String): String = {
     val translation = dynamicClass.gettext(key)
     if (translation == null)
-      if (_parent == null)
+      if (parent == null)
         null
       else
-        _parent.gettext(key)
+        parent.gettext(key)
     else
       translation
   }
@@ -42,10 +39,10 @@ class I18nLocalization(val i18nCatalog: I18nCatalog, val i18nLocale: I18nLocale,
   def ngettext(key: String, n: Int): String = {
     val translation = dynamicClass.ngettext(key, n)
     if (translation == null)
-      if (_parent == null)
+      if (parent == null)
         null
       else
-        _parent.ngettext(key, n)
+        parent.ngettext(key, n)
     else
       translation
   }
