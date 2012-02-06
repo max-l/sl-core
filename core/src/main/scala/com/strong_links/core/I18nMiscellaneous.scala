@@ -8,8 +8,8 @@ class StringGeneralString(s: String) extends GeneralString {
   override def toString = s
 }
 
-class I18nGeneralString(i18n: I18n) extends GeneralString {
-  Errors.fatal("Ceci est cassé car la LOCALE n'est pas utilisée")
+class I18nGeneralString(i18n: I18n) extends GeneralString with Logging {
+  logInfo("Ceci est cassé car la LOCALE n'est pas utilisée")
   override def toString = i18n.toString
 }
 
