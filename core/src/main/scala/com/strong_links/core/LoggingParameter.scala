@@ -29,32 +29,25 @@ object LoggingParameter {
 
 import LoggingParameter._
 
-class StringLoggingParameter(val s: String) extends LoggingParameter {
+class StringLoggingParameter(s: String) extends LoggingParameter {
 
   def format = safeFormat
 
   def safeFormat = handleNull(s)
 }
 
-class OptionStringLoggingParameter(val s: Option[String]) extends LoggingParameter {
+class OptionStringLoggingParameter(s: Option[String]) extends LoggingParameter {
 
   def format = safeFormat
 
   def safeFormat = (s match { case Some(x) => Some(handleNull(x)); case None => None }).toString
 }
 
-class PluggedStringLoggingParameter(val ps: PluggedString) extends LoggingParameter {
+class PluggedStringLoggingParameter(val pluggedString: PluggedString) extends LoggingParameter {
 
-  def format = ps.format(failsafe = false, quoted = true)
+  def format = pluggedString.fmt(safe = false, quoted = true)
 
-  def safeFormat = ps.format(failsafe = true, quoted = true)
+  def safeFormat = pluggedString.fmt(safe = true, quoted = true)
 }
 
-class FileLoggingParameter(val f: File) extends LoggingParameter {
-
-  def ps = "_" << f
-
-  def format = ps.format(failsafe = false, quoted = true)
-
-  def safeFormat = ps.format(failsafe = true, quoted = true)
-}
+class FileLoggingParameter(val f: File) extends PluggedStringLoggingParameter("_" << f)

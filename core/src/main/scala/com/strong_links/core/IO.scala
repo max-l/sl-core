@@ -255,7 +255,7 @@ class LeveledCharStream extends CharStream {
   override def println(s: String) = {
     def normalize(s: String) = if (s.trim.isEmpty) "" else s
     val margin = " " * (level * 2)
-    Util.split(s).foreach(line => super.println(normalize(margin + line)))
+    Util.split(s, "\n").foreach(line => super.println(normalize(margin + line)))
   }
 
   def block(s: String, start: String = "{", end: String = "}")(code: => Unit) {

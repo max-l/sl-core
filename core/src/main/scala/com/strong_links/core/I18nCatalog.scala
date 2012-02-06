@@ -16,9 +16,9 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
     x
   })
 
-  def translate(i18n: I18n, i18nLocale: I18nLocale) = {
+  def translate(i18nPluggable: PluggableI18n, i18nLocale: I18nLocale) = {
 
-    import i18n._
+    import i18nPluggable._
 
     def default = if (n == Int.MaxValue) msgid else if (i18nConfig.i18nCodeLocalization.rule(n)) msgidPlural else msgid
 

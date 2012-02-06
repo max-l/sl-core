@@ -9,6 +9,7 @@ class StringGeneralString(s: String) extends GeneralString {
 }
 
 class I18nGeneralString(i18n: I18n) extends GeneralString {
+  Errors.fatal("Ceci est cassé car la LOCALE n'est pas utilisée")
   override def toString = i18n.toString
 }
 
@@ -25,10 +26,12 @@ object I18nUtil {
     }
   }
 
-  def compute(msgCtxt: Option[String], msgid: String) = msgCtxt match {
-    case None => msgid
-    case Some(ctx) => ctx + "\u0000" + msgid
-  }
+  def compute(msgCtxt: String, msgid: String): String =
+    if (msgCtxt == null)
+      msgid
+    else msgCtxt + "\u0000" + msgid
+
+  def compute(msgCtxt: Option[String], msgid: String): String = compute(msgCtxt.getOrElse(null), msgid)
 
   def computeForCompiler(msgCtxt: Option[String], msgid: String) = msgCtxt match {
     case None => msgid

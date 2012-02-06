@@ -1,7 +1,9 @@
 package com.strong_links.core
 
+import scala.collection._
 import java.util.Calendar
 import java.text.SimpleDateFormat
+import java.util.regex.Pattern
 import scala.math
 import java.security.MessageDigest
 
@@ -29,40 +31,6 @@ object Util {
 
   def nowForLogging: String = {
     sdf4.format(getTime)
-  }
-
-  def withStringBuilder(f: StringBuilder => Unit): String = {
-    val sb = new StringBuilder
-    f(sb)
-    sb.toString
-  }
-
-  def primesUntil(n: Int, minimum: Int, nbSamples: Int): Array[Int] = {
-    val t = Array.fill[Boolean](n)(true)
-    t(0) = false; t(1) = false
-    for (i <- 2 to math.sqrt(n).toInt; if t(i); j <- 2 to (n / i); val z = i * j; if z < n)
-      t(z) = false
-    val primes = (0 until t.length).filter(i => t(i) && i >= minimum).toArray
-    val sampleDelta = primes.length.toDouble / nbSamples.toDouble
-    (for (i <- 0 until nbSamples; val index = (i * sampleDelta).toInt) yield primes(index)).toArray
-  }
-
-  def toDoubleList[T](xs: Iterable[T])(implicit numeric: Numeric[T]) = {
-    xs.map(numeric.toDouble(_)).toList
-  }
-
-  def average[T: Numeric](xs: Iterable[T]): Double = {
-    toDoubleList(xs).sum / xs.size
-  }
-
-  def averageAndStddev[T: Numeric](xs: Iterable[T]): (Double, Double) = {
-    val xl = toDoubleList(xs)
-    val n = xl.length
-    if (n == 0)
-      Errors.fatal("No elements in numeric collection.")
-    val avg = xl.sum / n
-    val stddev = if (n >= 2) math.sqrt((0.0 /: xl)((a, b) => a + (b - avg) * (b - avg)) / (n - 1)) else 0.0
-    (avg, stddev)
   }
 
   def getLevenshteinDistance(s: String, t: String): Int = {
@@ -100,7 +68,7 @@ object Util {
   def getWeightedLevenshteinDistance(from: String, to: String): Double = {
     val cost: Double = Util.getLevenshteinDistance(from, to)
     val L = to.length
-    if (L == 0) Double.MaxValue else cost / L
+    if (L == 0) Double.PositiveInfinity else cost / L
   }
 
   def timerInSeconds(times: Long)(u: => Any): Double = {
@@ -114,8 +82,6 @@ object Util {
     val delta = stop - start
     (delta).toDouble / 1000000000.0
   }
-
-  def timerInSeconds(u: => Unit): Double = timerInSeconds(1) { u }
 
   def encodeLong(v: Long) = {
     // Every long has 64 bits, and we need 11 segments of 6 bits to represent it.
@@ -169,7 +135,7 @@ object Util {
     private val f = MessageDigest.getInstance("MD5")
 
     def apply(b: Array[Byte]*) = {
-      b.foreach(f.update(_))
+      b.foreach(f.update)
       val result = f.digest
       f.reset
       result
@@ -181,27 +147,29 @@ object Util {
     toLong(bytes, 0)
   }
 
-  def checkDuplicates[T](I: Iterable[T])(errorCode: T => Unit) {
-    val set = scala.collection.mutable.Set[T]()
-    for (e <- I) {
-      if (set.contains(e))
-        errorCode(e)
-      set += e
+  def findDuplicates[A, C](coll: C)(implicit c2i: C => Iterable[A], cbf: generic.CanBuildFrom[C, A, C]): C =
+    if (coll.hasDefiniteSize) {
+      val builder = cbf()
+      val seen = mutable.Set[A]()
+      for (item <- coll) {
+        if (seen(item))
+          builder += item
+        seen += item
+      }
+      builder.result
+    } else
+      Errors.fatal("Collection has an infinite size.")
+
+  def findDuplicatesOption[A, C](coll: C)(implicit c2i: C => Iterable[A], cbf: generic.CanBuildFrom[C, A, C]): Option[C] =
+    findDuplicates(coll)(c2i, cbf) match {
+      case Nil => None
+      case list => Some(list)
     }
-  }
 
-  // Warning: the Java split function using a string delimiter uses a regex delimiter, so 
-  // here we bypass this weird behavior by always splitting on a single char, here \uFFFF.
-  def split(s: String, del: String): List[String] = {
-    // Note: the original string is returned when nothing is actually replaced.
-    val x = s.replace(del, "\uFFFF")
-    if (x eq s)
-      List(s)
-    else
-      x.split('\uFFFF').toList
-  }
+  def split(s: String, del: String): List[String] = s.split(Pattern.quote(del)).toList
 
-  def trimRight(s: String) = {
+  // Trim right a single line.
+  def trimRightLine(s: String) = {
     var L = s.length
     while (L > 0 && s(L - 1).isWhitespace)
       L -= 1
@@ -211,7 +179,13 @@ object Util {
       s.substring(0, L)
   }
 
-  def split(s: String, del: Char = '\n'): List[String] = split(s, del.toString)
+  // Trim right a number of input lines.
+  def trimRight(s: String) = if (s.contains('\n'))
+    split(s, '\n').map(trimRightLine).mkString("\n")
+  else
+    trimRightLine(s)
+
+  def split(s: String, del: Char): List[String] = split(s, del.toString)
 
   def nsplit(s: String, nbExpected: Int, del: String): List[String] = {
     val segments = split(s, del)
@@ -221,7 +195,7 @@ object Util {
     segments
   }
 
-  def nsplit(s: String, nbExpected: Int, del: Char = '\n'): List[String] =
+  def nsplit(s: String, nbExpected: Int, del: Char): List[String] =
     nsplit(s, nbExpected, del.toString)
 
   def splitTwo(s: String, del: String): (String, String) = {
@@ -241,9 +215,4 @@ object Util {
     splitTwoTrimmed(s, del.toString)
 
   def sp(singular: String, plural: String, n: Int) = if (n == 1) singular else plural
-
-}
-
-class DoubleFormatter(d: Double) {
-  def f2 = d.formatted("%.2f")
 }

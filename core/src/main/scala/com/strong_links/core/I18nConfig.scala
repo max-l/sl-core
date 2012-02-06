@@ -142,16 +142,16 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
     list
   }
 
+  private def fmtTarget(targetI18nLocale: Option[I18nLocale]) = targetI18nLocale match {
+    case None => i18nCodeLocalization.i18nLocale.key + " (code)"
+    case Some(x) => x.key
+  }
+
+  def getLocalizationsFmt(i18nLocale: I18nLocale) = {
+    getLocalizations(i18nLocale).map(fmtTarget)
+  }
+
   def showConfig {
-
-    def fmtTarget(targetI18nLocale: Option[I18nLocale]) = targetI18nLocale match {
-      case None => i18nCodeLocalization.i18nLocale.key + " (code)"
-      case Some(x) => x.key
-    }
-
-    def getLocalizationsFmt(i18nLocale: I18nLocale) = {
-      getLocalizations(i18nLocale).map(fmtTarget)
-    }
 
     def fmtList(list: List[I18nLocale]): String = if (list == Nil) "None" else "_" <<< list
     def fmtMap(list: List[String]): String = if (list == Nil) "None" else "_" << list
