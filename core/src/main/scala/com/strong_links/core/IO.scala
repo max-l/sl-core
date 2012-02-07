@@ -33,7 +33,7 @@ object IO {
 
   def checkForExistingDirectory(file: File) {
     if (!file.exists)
-      Errors.fatal("Directory _ does not exist." << file)
+      Errors.fatal("_ does not exist." << file)
     if (!file.isDirectory)
       Errors.fatal("_ is not a directory." << file)
   }

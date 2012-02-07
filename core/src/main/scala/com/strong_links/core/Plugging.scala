@@ -51,7 +51,9 @@ private[core] object Plugging {
   private val quote = '\''
 
   private def decorateFile(f: File, sb: StringBuilder, quoted: Boolean) {
-    if (f.isDirectory)
+    if (!f.exists)
+      sb.append("File system object ")
+    else if (f.isDirectory)
       sb.append("Directory ")
     else
       sb.append("File ")
