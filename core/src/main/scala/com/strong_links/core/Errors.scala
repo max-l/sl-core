@@ -30,15 +30,14 @@ object Errors {
   def fatal(cause: Throwable, params: Seq[LoggingParameter], moreParams: Seq[LoggingParameter]) =
     throwError(LoggingParameter.concat(params, moreParams), Some(cause))
 
+  def fatalCatch(params: LoggingParameter*): PartialFunction[Throwable, Nothing] =
+    { case t: Throwable => throwError(params, Some(t)) }
+
   def trap[R](params: LoggingParameter*)(anyCode: => R): R =
-    try anyCode catch {
-      case e => throwError(params, Some(e))
-    }
+    try anyCode catch fatalCatch(params: _*)
 
   private def _liveTrap[R](params: (() => LoggingParameter)*)(anyCode: => R): R =
-    try anyCode catch {
-      case e => throwError(params.map(_()), Some(e))
-    }
+    try anyCode catch fatalCatch(params.map(_()): _*)
 
   def liveTrap[R](p1: => LoggingParameter)(anyCode: => R): R =
     _liveTrap(p1 _)(anyCode)

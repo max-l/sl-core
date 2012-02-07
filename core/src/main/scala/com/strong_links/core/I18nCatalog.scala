@@ -22,15 +22,30 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
 
     def default = if (n == Int.MaxValue) msgid else if (i18nConfig.i18nCodeLocalization.rule(n)) msgidPlural else msgid
 
-    (getCachedLocalization(i18nLocale) match {
+    def bad(what: LoggingParameter) =
+      Errors.fatal(what, "On specifications msgCtxt _, msgid _, msgidPlural _." << (msgCtxt, msgid, msgidPlural))
+
+    // Use default if the required localization does not exist or it the translation done through a localization
+    // did not succeed.
+    val translation = (getCachedLocalization(i18nLocale) match {
       case null => default
       case loc => (if (n == Int.MaxValue) loc.gettext(key) else loc.ngettext(key, n)) match {
         case null => default
-        case translation => translation
+        case x => x
       }
-    }) match {
-      case null => Errors.fatal("Default translation failed with null on _, _, _." << (msgCtxt, msgid, msgidPlural))
-      case translation => translation
+    })
+
+    if (translation == null)
+      bad("Unexpected null translation.")
+
+    // Handle the possible msgCtxt appearing at the start of the string, along with its separator character, '\0000'.
+    if (msgCtxt == null)
+      translation
+    else {
+      val startIndex = msgCtxt.length + 1
+      if (startIndex >= translation.length)
+        Errors.fatal("Inconsistent Default translation failed with null on _, _, _." << (msgCtxt, msgid, msgidPlural))
+      translation.substring(startIndex)
     }
   }
 }

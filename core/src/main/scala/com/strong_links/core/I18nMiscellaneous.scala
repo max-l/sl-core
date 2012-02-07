@@ -26,10 +26,7 @@ object I18nUtil {
     }
   }
 
-  def compute(msgCtxt: String, msgid: String): String =
-    if (msgCtxt == null)
-      msgid
-    else msgCtxt + "\u0000" + msgid
+  def compute(msgCtxt: String, msgid: String) = if (msgCtxt == null) msgid else msgCtxt + "\u0000" + msgid
 
   def compute(msgCtxt: Option[String], msgid: String): String = compute(msgCtxt.getOrElse(null), msgid)
 

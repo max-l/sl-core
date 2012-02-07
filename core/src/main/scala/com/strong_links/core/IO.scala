@@ -55,10 +55,12 @@ object IO {
         try {
           if (n > 0)
             os.write(b, 0, n)
-        } catch { case e => Errors.fatal(e, "Writing _ bytes in _ at offset _" << (n, outFile, offset)) }
+        } catch
+          Errors.fatalCatch("Writing _ bytes in _ at offset _" << (n, outFile, offset))
         done = n < bufsiz
         offset += n
-      } catch { case e => Errors.fatal(e, "Reading _ bytes in _ at offset _" << (bufsiz, inFile, offset)) }
+      } catch
+        Errors.fatalCatch("Reading _ bytes in _ at offset _" << (bufsiz, inFile, offset))
     }
     is.close
     os.close

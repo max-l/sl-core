@@ -123,11 +123,12 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
   def getLocalizations(i18nLocale: I18nLocale) = {
     var previousSet = false
     var previous: Option[I18nLocale] = None
-    def makeChain(optionI18nLocale: Option[I18nLocale]): List[Option[I18nLocale]] = resolve(optionI18nLocale) match {
-      case None => Nil
-      case Some(x) => Some(x) :: makeChain(x.down)
-    }
-    val r = makeChain(Some(i18nLocale)) :+ None
+    def makeChain(optionI18nLocale: Option[I18nLocale]): List[Option[I18nLocale]] =
+      resolve(optionI18nLocale) match {
+        case None => Nil
+        case Some(x) => Some(x) :: makeChain(x.down)
+      }
+    val r = makeChain(Some(i18nLocale)) :+ None // None means "code" here.
     val list = for (
       e <- r if !previousSet || e != previous
     ) yield {

@@ -19,7 +19,9 @@ class PluggedString private[core] (s: String, args: Seq[_], quotedDefault: Boole
 class PluggableI18n private[core] (catalog: I18nCatalog, val msgCtxt: String, val msgid: String, val msgidPlural: String, val n: Int)
   extends I18n {
 
-  lazy val key = I18nUtil.compute(msgCtxt, msgid)
+  // This is the key used for searches in the resource files. Strings must be "internized", as this will allow fast
+  // identity lookups.
+  lazy val key = I18nUtil.compute(msgCtxt, msgid).intern
 
   def f(implicit i18nLocale: I18nLocale) = catalog.translate(this, i18nLocale)
 
