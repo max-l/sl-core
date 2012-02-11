@@ -31,11 +31,12 @@ object IO {
     dirSeparator(0)
   }
 
-  def checkForExistingDirectory(file: File) {
+  def checkForExistingDirectory(file: File) = {
     if (!file.exists)
       Errors.fatal("_ does not exist." << file)
     if (!file.isDirectory)
       Errors.fatal("_ is not a directory." << file)
+    file
   }
 
   def copy(inFile: File, outFile: File, mightOverwrite: Boolean = true) {

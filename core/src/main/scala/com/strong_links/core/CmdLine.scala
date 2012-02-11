@@ -8,7 +8,7 @@ trait CmdLineTrait {
     def parse(s: String): T
   }
 
-  def toFile(s: String) = new File(OS.translatePath(s))
+  def toFile(s: String) = new File(s)
   def toInt(s: String) = s.toInt
   def toFloat(s: String) = s.toFloat
   def toDouble(s: String) = s.toDouble
