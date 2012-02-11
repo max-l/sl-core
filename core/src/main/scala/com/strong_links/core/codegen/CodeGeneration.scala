@@ -40,7 +40,7 @@ trait CodeGeneration extends Logging {
     cs.println
   }
 
-  def generateScalaFile[T](entries: Seq[T], outputFile: File, sourceFile: File,
+  def generateScalaFile[T](entries: Seq[T], cacheCode: String, outputFile: File, sourceFile: File,
     masterPackageName: String, packageName: String, className: String, objectName: String, objectIsInside: Boolean, imports: List[String])(code: T => String) {
     val cs = new LeveledCharStream
     def genObjectIf(b: Boolean, what: String, element: String) = if (b) {
@@ -55,7 +55,15 @@ trait CodeGeneration extends Logging {
           cs.println("import _" << imp)
       }
       cs.block("package _" << packageName) {
+        if (cacheCode != "")
+          cs.block("object __cache") {
+            cs.println(cacheCode)
+          }
         cs.block("class _" << className) {
+          if (cacheCode != "") {
+            cs.println
+            cs.println("import __cache._")
+          }
           entries.foreach(e => cs.println(code(e)))
         }
         genObjectIf(objectIsInside, "object", "extends")
