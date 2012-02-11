@@ -6,7 +6,7 @@ class LexToken(val symbol: LexSymbol, val value: String, val lineNumber: Int, va
 
   override def toString = {
     val label = symbol.toString
-    if (label == value) label else ("_ (_)" << (label, value))
+    if (symbol.value == value) label else ("_ (_)" << (label, value))
   }
 
   def is(s: LexSymbol) = s == symbol
