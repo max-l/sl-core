@@ -29,12 +29,12 @@ package object core extends I18nImplicits {
   class Wrapper[R](r: R) {
 
     def spy = {
-      Console.err.println("Spy: _" << r)
+      Console.err.println("Spy --\n/_/" << r)
       r
     }
 
     def spy(what: LoggingParameter*) = {
-      Console.err.println("Spy _: _" << (LoggingParameter.format(what), r))
+      Console.err.println("Spy _ -- \n/_/" << (LoggingParameter.format(what), r))
       r
     }
   }

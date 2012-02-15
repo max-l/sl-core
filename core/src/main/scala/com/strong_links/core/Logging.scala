@@ -51,6 +51,10 @@ object Logging {
   private var loggerCreator: LoggerCreator = c => new BasicLogger(c)
 
   def setLogger(c: LoggerCreator) { loggerCreator = c }
+  
+  def resetLogger {
+    loggerCreator = c => new BasicLogger(c)
+  }
 }
 
 trait Logging {
