@@ -59,13 +59,5 @@ object OS {
       // Else it is a relative path.
       s.mkString("\\")
   }
-
-  // Allow the manipulation of Unix paths in a Linux shell console.
-  def translatePath(path: String) = {
-    if (path.contains('/') && IO.isWindows)
-      toWindows(path)
-    else
-      path
-  }
 }
 

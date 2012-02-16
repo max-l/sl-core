@@ -6,7 +6,7 @@ package com.strong_links.core
 object Errors {
 
   class SystemException(val params: Seq[LoggingParameter], val cause: Option[Throwable])
-    extends Exception("System exception", cause.getOrElse(null)) {
+      extends Exception("System exception", cause.getOrElse(null)) {
     override def getMessage() = LoggingParameter.safeFormat(params)
   }
 
@@ -54,14 +54,10 @@ object Errors {
   def liveTrap[R](p1: => LoggingParameter, p2: => LoggingParameter, p3: => LoggingParameter, p4: => LoggingParameter, p5: => LoggingParameter)(anyCode: => R): R =
     _liveTrap(p1 _, p2 _, p3 _, p4 _, p5 _)(anyCode)
 
-  /**
-   * Signal a bad value error.
-   */
   def badValue(value: Any) = fatal("Bad value _." << value)
 
-  /**
-   * For "Not Implemented" methods.
-   */
+  def badLogic = fatal("Bad logic.")
+
   def notImplemented = fatal("Not implemented.")
 
   private def exceptionChain(e: Throwable): List[Throwable] =

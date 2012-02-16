@@ -21,49 +21,65 @@ object LexParser {
 
 abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
 
-  val Other, Eof, Identifier, CharacterString, Number = symbol
+  val Undefined, Other, Eof, Identifier, CharacterString, Number = symbol
   val Comma = specialSymbol(",")
   val Dot = specialSymbol(".")
   val Colon = specialSymbol(":")
   val LeftParenthesis = specialSymbol("(")
   val RightParenthesis = specialSymbol(")")
+  val BlockComments = symbol
 
-  protected val ETX = '\u0000'
+  val ETX = '\u0000'
+
+  private val data = pData.replace("\r\n", "\n") + ETX
   private var lineNumber = 1
-  protected var pos, startPos = 0
-  protected var token = defaultToken
-  protected val data = pData.replace("\r\n", "\n") + ETX
-  protected var currentChar = data(pos)
+  private var pos, startPos, startPosWithWhiteSpace = 0
+  private var _currentChar = data(pos)
+
+  private var _token = new LexToken(Undefined, "", lineNumber, pos, pos, startPosWithWhiteSpace)
+
+  def currentChar = _currentChar
+  def token = _token
 
   // Token creators
-  def defaultToken = new LexToken(Other, Other.toString, lineNumber, pos)
-  def setToken(symbol: LexSymbol, value: String) { token = new LexToken(symbol, value, lineNumber, startPos) }
-  def setToken(symbol: LexSymbol) { setToken(symbol, symbol.toString) }
+  def setToken(symbol: LexSymbol, value: String) { _token = new LexToken(symbol, value, lineNumber, startPos, pos, startPosWithWhiteSpace) }
+  def setToken(symbol: LexSymbol) { setToken(symbol, "") }
+
+  // Get data between two tokens, included or excluded.
+  def getDataBetween(startToken: LexToken, includeStartToken: Boolean,
+                     endToken: LexToken, includeEndToken: Boolean, includeWhiteSpace: Boolean) = {
+    val start = if (includeStartToken)
+      if (includeWhiteSpace) startToken.startPosWithWhiteSpace else startToken.startPos
+    else
+      startToken.endPos
+    val end = if (includeEndToken) endToken.endPos else endToken.startPos
+    data.substring(start, end)
+  }
 
   // Character-level helpers.
-  protected def previousChar = if (pos == 0) '\n' else data(pos - 1)
+  def previousChar = if (pos == 0) '\n' else data(pos - 1)
 
-  protected def nextChar = data(pos + 1)
+  def nextChar = data(pos + 1)
 
-  protected def nextNextChar = data(pos + 2)
+  def nextNextChar = data(pos + 2)
 
-  protected def nextNextNextChar = data(pos + 3)
+  def nextNextNextChar = data(pos + 3)
 
-  protected def move {
+  def move {
     if (currentChar != ETX) {
       if (currentChar == '\n')
         lineNumber += 1
       pos += 1
-      currentChar = data(pos)
+      _currentChar = data(pos)
     }
   }
 
-  protected def move(n: Int) {
+  def move(n: Int) {
     for (i <- 0 until n)
       move
   }
 
-  protected def eatUntil(c: => Boolean) = {
+  def eatUntil(c: => Boolean) = {
     val start = pos
     while (currentChar != ETX && !c)
       move
@@ -71,20 +87,28 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
   }
 
   // Symbol checks.
-  protected def expect(validChoices: LexSymbol*) {
+  def expect(validChoice: LexSymbol) {
+    if (token isNot validChoice)
+      Errors.fatal("Invalid token _; expected _." <<< (token, validChoice))
+  }
+
+  def expect(validChoices: LexSymbol*) {
     if (token notIn (validChoices: _*))
-      if (validChoices.length == 1)
-        Errors.fatal("Invalid token _; expected _." <<< (token, validChoices.toSeq(0)))
-      else
-        Errors.fatal("Invalid token _; expected one of _." <<< (token, validChoices))
+      Errors.fatal("Invalid token _; expected one of _." <<< (token, validChoices))
+  }
+
+  def findToken(symbol: LexSymbol) {
+    while (token notIn (symbol, Eof))
+      getToken
+    expect(symbol)
   }
 
   // Some rules.
-  protected def isIdentifierFirstCharacter: Boolean = {
+  def isIdentifierFirstCharacter: Boolean = {
     currentChar.isLetter || currentChar == '_' || currentChar == '$'
   }
 
-  protected def isIdentifierCharacter: Boolean = {
+  def isIdentifierCharacter: Boolean = {
     isIdentifierFirstCharacter || currentChar.isDigit
   }
 
@@ -105,13 +129,13 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
           Some(identifierSymbols(mid))
       }
     search(word, 0, identifierSymbols.length - 1) match {
-      case None => setToken(Identifier, word)
+      case None    => setToken(Identifier, word)
       case Some(s) => setToken(s, s.identifier)
     }
   }
 
   // Get a number, and ensure that it can be represented as an Int.
-  private def getNumber {
+  def getNumber {
     var v = 0L
     val sb = new StringBuilder
     while (currentChar.isDigit) {
@@ -124,7 +148,7 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     setToken(Number, sb.toString)
   }
 
-  protected def getQuoted(quote: Char, allowEscape: Boolean, symbol: LexSymbol) {
+  def getQuoted(quote: Char, allowEscape: Boolean, symbol: LexSymbol) {
     // Skip over the intial quote
     move
     val start = pos
@@ -140,13 +164,13 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     }
     if (currentChar != quote)
       unterminated
-    setToken(symbol, data.substring(start, pos))
     move
+    setToken(symbol, data.substring(start, pos - 1))
   }
 
-  protected def getString = getQuoted('"', true, CharacterString)
+  def getString = getQuoted('"', true, CharacterString)
 
-  protected def getTickedIdentifier = getQuoted('`', false, Identifier)
+  def getTickedIdentifier = getQuoted('`', false, Identifier)
 
   def getLineComments(s: LexSymbol) {
     val c = eatUntil(currentChar == '\n')
@@ -168,39 +192,47 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
         i += 1
       }
       if (i == L) {
-        setToken(ss, k)
         move(L)
+        setToken(ss, k)
         // Yes, this is a bit cowboy, but faster.
         return
       }
     }
-    setToken(Other, currentChar.toString)
     move(1)
+    setToken(Other, currentChar.toString)
   }
 
-  protected def skip(what: LexSymbol) {
+  def skip(what: LexSymbol) {
     expect(what)
     getToken
   }
 
-  protected def eatAnyToken = {
+  def skipped(what: LexSymbol) = { val x = token is what; if (x) skip(what); x }
+
+  def eatAnyToken = {
     val t = token
     getToken
     t
   }
 
-  def eatToken(symbol: LexSymbol) = {
-    expect(symbol)
+  def eatToken(symbols: LexSymbol*) = {
+    expect(symbols: _*)
     eatAnyToken
   }
 
+  private var eofAnnounced = false
+
   def getToken {
+    startPosWithWhiteSpace = pos
     while (currentChar.isWhitespace)
       move
     startPos = pos
-    if (currentChar == ETX)
+    if (currentChar == ETX) {
+      if (eofAnnounced)
+        Errors.fatal("Reading past end of file.")
+      eofAnnounced = true
       setToken(Eof, "End of file")
-    else if (isIdentifierFirstCharacter) {
+    } else if (isIdentifierFirstCharacter) {
       val sb = new StringBuilder
       while (isIdentifierCharacter) {
         sb.append(currentChar)
@@ -213,6 +245,27 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
       getTickedIdentifier
     else
       getMiscellaneous
+  }
+
+  def isBlockCommentStart = currentChar == '/' && nextChar == '*'
+
+  def isBlockCommentEnd = currentChar == '*' && nextChar == '/'
+
+  def getBlockComments {
+    val start = pos
+    move(2)
+    var level = 1
+    do {
+      eatUntil(isBlockCommentStart || isBlockCommentEnd)
+      if (isBlockCommentStart)
+        level += 1
+      else if (isBlockCommentEnd)
+        level -= 1
+      else
+        Errors.fatal("Unclosed block comment.")
+      move(2)
+    } while (level != 0)
+    setToken(BlockComments, data.substring(start, pos))
   }
 }
 

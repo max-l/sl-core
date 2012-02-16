@@ -27,8 +27,14 @@ package object core extends I18nImplicits {
   implicit def doubleToDoubleFormatter(d: Double) = new DoubleFormatter(d)
 
   class Wrapper[R](r: R) {
+
     def spy = {
-      Console.err.println("Spy: _" << r)
+      Console.err.println("Spy --\n/_/" << r)
+      r
+    }
+
+    def spy(what: LoggingParameter*) = {
+      Console.err.println("Spy _ -- \n/_/" << (LoggingParameter.format(what), r))
       r
     }
   }
