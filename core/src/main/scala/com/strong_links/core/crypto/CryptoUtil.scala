@@ -6,15 +6,19 @@ import java.security._
 import javax.crypto._
 import javax.crypto.spec.SecretKeySpec
 
-
 trait CryptoUtil {
 
-  def stringEncoder: Array[Byte] => String
+  def encodeString(a: Array[Byte]) =
+    javax.xml.bind.DatatypeConverter.printBase64Binary(a)
 
   sealed trait CryptoField {
+    
     def value: String
+    
     def rawValue: Array[Byte]
+
     def mapValue[A](f: String => A) = f(value)
+
     lazy val asLong = parseLong(value)
 
     def matches(f: CryptoField) = {
@@ -31,7 +35,7 @@ trait CryptoUtil {
   }
 
   sealed class RawCryptoField(val rawValue: Array[Byte]) extends CryptoField{
-    lazy val value = stringEncoder(rawValue)
+    lazy val value = encodeString(rawValue)
   }
 
   sealed class RefinedCryptoField(val value: String) extends CryptoField{
