@@ -8,8 +8,16 @@ import javax.crypto.spec.SecretKeySpec
 
 trait CryptoUtil {
 
-  def encodeString(a: Array[Byte]) =
-    javax.xml.bind.DatatypeConverter.printBase64Binary(a)
+  import javax.xml.bind.DatatypeConverter._
+  
+  def bytesToString(a: Array[Byte]) =
+    printBase64Binary(a)
+    
+  def stringToBytes(s: String) =
+    s.getBytes("UTF-8")
+
+  def cryptoFieldFromBase64(s: String) = 
+    new FullCryptoField(parseBase64Binary(s), s)
 
   sealed trait CryptoField {
     
@@ -34,12 +42,14 @@ trait CryptoUtil {
     }
   }
 
-  sealed class RawCryptoField(val rawValue: Array[Byte]) extends CryptoField{
-    lazy val value = encodeString(rawValue)
+  sealed class FullCryptoField(val rawValue: Array[Byte], val value: String) extends CryptoField
+  
+  sealed class RawCryptoField(val rawValue: Array[Byte]) extends CryptoField {
+    lazy val value = bytesToString(rawValue)
   }
 
-  sealed class RefinedCryptoField(val value: String) extends CryptoField{
-    lazy val rawValue = value.getBytes("UTF-8")
+  sealed class RefinedCryptoField(val value: String) extends CryptoField {
+    lazy val rawValue = stringToBytes(value)
   }  
 
   implicit def stringToCryptoField(s: String) = 
