@@ -11,14 +11,14 @@ object Convert {
       found = map(ch) != null
       i += 1
     }
-    val r = 
+    val r =
       if (found) {
         i -= 1
         val sofar = if (i == 0) "" else s.substring(0, i)
         val sb = new StringBuilder(sofar)
         while (i < n) {
           val ch = s(i)
-          val x = map (ch)
+          val x = map(ch)
           if (x == null)
             sb.append(ch)
           else
@@ -29,46 +29,47 @@ object Convert {
       } else
         s
     quote match {
-      case None => r
+      case None    => r
       case Some(q) => q + r + q
     }
   }
 
   def toHtml(s: String, quote: Boolean = false) = generic(s, if (quote) Some('"') else None) {
-    case '<' => "&lt;"
-    case '>' => "&gt;" 
-    case '&' => "&amp;" 
-    case '"' => "&#34;"        // Some HTML 3.2 browsers do not understand &quot; 
-    case '\u00A0' => "&nbsp;"
-    case c if c.isControl => c.toInt.formatted("&#%d;") 
-    case _ => null 
+    case '<'              => "&lt;"
+    case '>'              => "&gt;"
+    case '&'              => "&amp;"
+    case '"'              => "&#34;" // For JS in HTML constructs. 
+    case '\''             => "&#39;" // For JS in HTML constructs. 
+    case '\u00A0'         => "&nbsp;"
+    case c if c.isControl => c.toInt.formatted("&#%d;")
+    case _                => null
   }
-  
+
   // From http://www.w3schools.com/js/js_special_characters.asp
   def toJs(s: String, quote: Boolean = false) = generic(s, if (quote) Some('\'') else None) {
-    case '\'' => "\\'" 
-    case '\"' => "\\\"" 
-    case '\\' => "\\\\" 
-    case '\n' => "\\n" 
-    case '\r' => "\\r" 
-    case '\t' => "\\t" 
-    case '\b' => "\\b" 
-    case '\f' => "\\f" 
-    case c if c.isControl => c.toInt.formatted("\\u%04X") 
-    case _ => null 
+    case '\''             => "\\'"
+    case '\"'             => "\\\""
+    case '\\'             => "\\\\"
+    case '\n'             => "\\n"
+    case '\r'             => "\\r"
+    case '\t'             => "\\t"
+    case '\b'             => "\\b"
+    case '\f'             => "\\f"
+    case c if c.isControl => c.toInt.formatted("\\u%04X")
+    case _                => null
   }
-  
+
   // From Odersky, Martin; Programming in Scala, 2nd Edition; page 78 
   def toScala(s: String, quote: Boolean = false) = generic(s, if (quote) Some('"') else None) {
-    case '\n' => "\\n" 
-    case '\b' => "\\b" 
-    case '\t' => "\\t" 
-    case '\f' => "\\f" 
-    case '\r' => "\\r" 
-    case '"' => "\\\"" 
-    case '\'' => "\\'" 
-    case '\\' => "\\\\" 
-    case c if c.isControl => c.toInt.formatted("\\u%04X") 
-    case _ => null 
+    case '\n'             => "\\n"
+    case '\b'             => "\\b"
+    case '\t'             => "\\t"
+    case '\f'             => "\\f"
+    case '\r'             => "\\r"
+    case '"'              => "\\\""
+    case '\''             => "\\'"
+    case '\\'             => "\\\\"
+    case c if c.isControl => c.toInt.formatted("\\u%04X")
+    case _                => null
   }
 }
