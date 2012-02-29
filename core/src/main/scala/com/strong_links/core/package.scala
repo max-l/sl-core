@@ -5,6 +5,10 @@ import java.io.File
 
 package object core extends I18nImplicits {
 
+  implicit def stringToPluggableString(s: String) = new PluggableString(s)
+
+  implicit def pluggedStringToString(pluggedString: PluggedString) = pluggedString.f
+
   implicit val i18nLocaleComparer = new Ordering[I18nLocale] {
     def compare(a: I18nLocale, b: I18nLocale): Int = a compare b
   }

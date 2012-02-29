@@ -4,10 +4,6 @@ import java.util.Locale
 
 trait I18nImplicits {
 
-  implicit def stringToPluggableString(s: String) = new PluggableString(s)
-
-  implicit def pluggedStringToString(pluggedString: PluggedString) = pluggedString.f
-
   implicit def i18nLocaleToLocale(i18nLocale: I18nLocale): Locale =
     i18nLocale.locale
 
