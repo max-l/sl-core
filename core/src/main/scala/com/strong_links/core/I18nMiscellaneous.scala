@@ -2,17 +2,6 @@ package com.strong_links.core
 
 import java.util.Locale
 
-abstract class GeneralString
-
-class StringGeneralString(s: String) extends GeneralString {
-  override def toString = s
-}
-
-class I18nGeneralString(i18n: I18n) extends GeneralString with Logging {
-  logInfo("Ceci est cassé car la LOCALE n'est pas utilisée")
-  override def toString = i18n.toString
-}
-
 object I18nUtil {
 
   def validate(os: Option[String], what: String) = {
@@ -31,12 +20,12 @@ object I18nUtil {
   def compute(msgCtxt: Option[String], msgid: String): String = compute(msgCtxt.getOrElse(null), msgid)
 
   def computeForCompiler(msgCtxt: Option[String], msgid: String) = msgCtxt match {
-    case None => msgid
+    case None      => msgid
     case Some(ctx) => ctx + "\\u0000" + msgid
   }
 
   def computeForHuman(msgCtxt: Option[String], msgid: String): String = msgCtxt match {
-    case None => "msgid _" <<< msgid
+    case None      => "msgid _" <<< msgid
     case Some(ctx) => "msgctxt _ and msgid _" <<< (ctx, msgid)
   }
 }

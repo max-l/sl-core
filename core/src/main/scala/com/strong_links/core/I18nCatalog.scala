@@ -4,10 +4,28 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
 
   private var cache = Map[String, I18nLocalization]()
 
+  def i18n[S <: String](msgid: S) =
+    new PluggableI18n(this, null, msgid, msgid, Int.MaxValue)
+
+  def i18nCtxt[S <: String](msgCtxt: S, msgid: S) =
+    new PluggableI18n(this, msgCtxt, msgid, msgid, Int.MaxValue)
+
+  def i18nPlural[S <: String](msgid: S, msgidPlural: S, n: Int) =
+    new PluggableI18n(this, null, msgid, msgidPlural, n)
+
+  def i18nPlural[S <: String](msgid: S, n: Int) =
+    new PluggableI18n(this, null, msgid, msgid, n)
+
+  def i18nPluralCtxt[S <: String](msgCtxt: S, msgid: S, msgPlural: S, n: Int) =
+    new PluggableI18n(this, msgCtxt, msgid, msgPlural, n)
+
+  def i18nPluralCtxt[S <: String](msgCtxt: S, msgid: S, n: Int) =
+    new PluggableI18n(this, msgCtxt, msgid, msgid, n)
+
   def loadChainedLocalization(chain: List[Option[I18nLocale]]): I18nLocalization = chain match {
-    case List(None) => null
+    case List(None)         => null
     case Some(head) :: rest => new I18nLocalization(this, head, loadChainedLocalization(rest))
-    case _ => Errors.fatal("Invalid chain _." << chain)
+    case _                  => Errors.fatal("Invalid chain _." << chain)
   }
 
   def getCachedLocalization(i18nLocale: I18nLocale) = cache.getOrElse(i18nLocale.key, {
@@ -31,7 +49,7 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
       case null => default
       case loc => (if (n == Int.MaxValue) loc.gettext(key) else loc.ngettext(key, n)) match {
         case null => default
-        case x => x
+        case x    => x
       }
     })
 

@@ -83,6 +83,8 @@ abstract class LexParser(pData: String) extends LexSymbolTagger with Logging {
     val start = pos
     while (currentChar != ETX && !c)
       move
+    if (currentChar == ETX)
+      Errors.fatal("Unexpected end of file.")
     data.substring(start, pos)
   }
 

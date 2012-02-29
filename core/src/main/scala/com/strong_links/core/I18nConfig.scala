@@ -45,10 +45,29 @@ object I18nConfig {
     p <- splitAndclean(specifications);
     (from, to) = Util.splitTwoTrimmed(p, "->")
   ) yield toLocale(from) -> toLocale(to)).toMap
+
+  private def toPps(packageSpecifications: String) = {
+    Util.split(packageSpecifications, "/") match {
+      case List(codeKey) => (codeKey, "", "", "")
+      case List(codeKey, masterKeys) => (codeKey, masterKeys, "", "")
+      case List(codeKey, masterKeys, subKeys) => (codeKey, masterKeys, subKeys, "")
+      case List(codeKey, masterKeys, subKeys, mappings) => (codeKey, masterKeys, subKeys, mappings)
+      case _ => Errors.fatal("Invalid package specifications _." << packageSpecifications)
+    }
+  }
+
+  def toI18nConfigs(specifications: String) =
+    for (
+      s <- Util.split(specifications, ';').map(_.trim).filter(!_.isEmpty);
+      (packageName, packageSpecifications) = Util.splitTwoTrimmed(s, '=');
+      (codeKey, masterKeys, subKeys, mappings) = toPps(packageSpecifications)
+    ) yield new I18nConfig(packageName, codeKey, masterKeys, subKeys, mappings)
 }
 
 class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
-  fullLocales: Seq[Locale], deltaLocales: Seq[Locale], _mappings: Map[Locale, Locale]) {
+                 fullLocales: Seq[Locale], deltaLocales: Seq[Locale], _mappings: Map[Locale, Locale]) {
+
+  override def toString = "I18nConfig(_, _, _, _, _)" << (packageName, i18nCodeLocalization, fullI18nLocales, deltaI18nLocales, _mappings)
 
   def this(packageName: String, codeKey: String, masterKeys: String = "", subKeys: String = "", mappings: String = "") =
     this(packageName, I18nStock.get(codeKey),
@@ -56,11 +75,11 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
       I18nConfig.toMappings(mappings))
 
   def this(packageName: String, i18nCodeLocalization: I18nStock,
-    fullLocales: Seq[Locale], deltaLocales: Seq[Locale]) =
+           fullLocales: Seq[Locale], deltaLocales: Seq[Locale]) =
     this(packageName, i18nCodeLocalization, fullLocales, deltaLocales, Map[Locale, Locale]())
 
   def this(packageName: String, i18nCodeLocalization: I18nStock,
-    fullLocales: Seq[Locale]) =
+           fullLocales: Seq[Locale]) =
     this(packageName, i18nCodeLocalization, fullLocales, Seq[Locale](), Map[Locale, Locale]())
 
   def this(packageName: String, i18nCodeLocalization: I18nStock) =
@@ -81,19 +100,19 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
 
   // Ensure that no mapping is duplicated.
   mappingsList.groupBy(_._1).filter(_._2.length > 1).map(_._1) match {
-    case Nil =>
+    case Nil  =>
     case dups => Errors.fatal("Duplicate mappings _." << dups)
   }
 
   // Ensure that no mapping source is already known.
   mappingsList.map(_._1).filter(e => allI18nLocales.exists(_ == e)) match {
-    case Nil =>
+    case Nil  =>
     case list => Errors.fatal("Invalid mapping sources _." << list)
   }
 
   // Ensure that all mapping targets are known.
   mappingsList.map(_._2).filterNot(e => allI18nLocales.exists(_ == e)) match {
-    case Nil =>
+    case Nil  =>
     case list => Errors.fatal("Unknown mapping targets _." << list)
   }
 
@@ -115,7 +134,7 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
           Some(i18nLocale)
         else
           mappings.get(i18nLocale) match {
-            case None => resolve(i18nLocale.down)
+            case None   => resolve(i18nLocale.down)
             case target => resolve(target)
           }
     }
@@ -125,7 +144,7 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
     var previous: Option[I18nLocale] = None
     def makeChain(optionI18nLocale: Option[I18nLocale]): List[Option[I18nLocale]] =
       resolve(optionI18nLocale) match {
-        case None => Nil
+        case None    => Nil
         case Some(x) => Some(x) :: makeChain(x.down)
       }
     val r = makeChain(Some(i18nLocale)) :+ None // None means "code" here.
@@ -144,7 +163,7 @@ class I18nConfig(val packageName: String, val i18nCodeLocalization: I18nStock,
   }
 
   private def fmtTarget(targetI18nLocale: Option[I18nLocale]) = targetI18nLocale match {
-    case None => i18nCodeLocalization.i18nLocale.key + " (code)"
+    case None    => i18nCodeLocalization.i18nLocale.key + " (code)"
     case Some(x) => x.key
   }
 

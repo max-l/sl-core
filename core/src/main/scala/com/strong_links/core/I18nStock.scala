@@ -4,6 +4,8 @@ import java.util.Locale
 
 class I18nStock(locale: Locale, val rule: (Int) => Boolean, val poRule: String) {
 
+  override def toString = i18nLocale.toString + " (stock)"
+
   val i18nLocale = I18nLocale(locale)
 
   def cloneFor(locale: Locale): I18nStock = {
@@ -145,13 +147,13 @@ object I18nStock {
     "zh" -> rule00)
 
   def get(key: String) = map.get(key) match {
-    case None => Errors.fatal("Localization _ is unknown." << key)
+    case None    => Errors.fatal("Localization _ is unknown." << key)
     case Some(x) => new I18nStock(I18nLocale.from(key).locale, x._1, x._2)
   }
 
   def getBest(i18nLocale: I18nLocale): Option[I18nStock] =
     i18nLocale.toChain.map(_.key).find(map.contains) match {
-      case None => None
+      case None      => None
       case Some(key) => Some(get(key))
     }
 

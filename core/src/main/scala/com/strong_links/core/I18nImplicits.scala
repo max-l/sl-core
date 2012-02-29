@@ -8,28 +8,6 @@ trait I18nImplicits {
 
   implicit def pluggedStringToString(pluggedString: PluggedString) = pluggedString.f
 
-  implicit def stringToStringGeneralString(s: String): GeneralString = new StringGeneralString(s)
-
-  implicit def i18nToI18nGeneralString(i18n: I18n): GeneralString = new I18nGeneralString(i18n)
-
-  def I18n[S <: String](msgid: S)(implicit catalog: I18nCatalog) =
-    new PluggableI18n(catalog, null, msgid, msgid, Int.MaxValue)
-
-  def I18nCtxt[S <: String](msgCtxt: S, msgid: S)(implicit catalog: I18nCatalog) =
-    new PluggableI18n(catalog, msgCtxt, msgid, msgid, Int.MaxValue)
-
-  def I18nPlural[S <: String](msgid: S, msgidPlural: S, n: Int)(implicit catalog: I18nCatalog) =
-    new PluggableI18n(catalog, null, msgid, msgidPlural, n)
-
-  def I18nPlural[S <: String](msgid: S, n: Int)(implicit catalog: I18nCatalog) =
-    new PluggableI18n(catalog, null, msgid, msgid, n)
-
-  def I18nPluralCtxt[S <: String](msgCtxt: S, msgid: S, msgPlural: S, n: Int)(implicit catalog: I18nCatalog) =
-    new PluggableI18n(catalog, msgCtxt, msgid, msgPlural, n)
-
-  def I18nPluralCtxt[S <: String](msgCtxt: S, msgid: S, n: Int)(implicit catalog: I18nCatalog) =
-    new PluggableI18n(catalog, msgCtxt, msgid, msgid, n)
-
   implicit def i18nLocaleToLocale(i18nLocale: I18nLocale): Locale =
     i18nLocale.locale
 
