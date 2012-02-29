@@ -14,24 +14,24 @@ class IdentityMap[A <: AnyRef, B] {
   private val h = new IdentityHashMap[A, B]
 
   // Service method.
-  private def gput(key: A, once: Boolean)(compute: (A) => B): B = lock synchronized {
+  private def gput(key: A, once: Boolean)(compute: => B): B = lock synchronized {
     val exists = h.containsKey(key)
     if (exists && once)
       Errors.fatal("Duplicate key _ detected." << key)
     if (exists)
       h.get(key)
     else {
-      val result = compute(key)
+      val result = compute
       h.put(key, result)
       result
     }
   }
 
   // Put the key along with its value, as many times as we want.
-  def put(key: A)(compute: (A) => B): B = gput(key, false)(compute)
+  def put(key: A)(compute: => B): B = gput(key, false)(compute)
 
   // Put the key along with its value, only once.
-  def putOnce(key: A)(compute: (A) => B): B = gput(key, true)(compute)
+  def putOnce(key: A)(compute: => B): B = gput(key, true)(compute)
 
   def getKeys = getKeysAndValues.map(_._1)
 
@@ -57,6 +57,6 @@ class IdentityMap[A <: AnyRef, B] {
 }
 
 class UniqueIdentityMap[A <: AnyRef] extends com.strong_links.core.IdentityMap[A, A] {
-  def put(key: A) = super.put(key)(key => key)
+  def put(key: A) = super.put(key)(key)
 }
 
