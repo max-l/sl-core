@@ -57,14 +57,16 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
       bad("Unexpected null translation.")
 
     // Handle the possible msgCtxt appearing at the start of the string, along with its separator character, '\0000'.
-    if (msgCtxt == null)
+    val result = if (msgCtxt == null)
       translation
     else {
       val startIndex = msgCtxt.length + 1
       if (startIndex >= translation.length)
         Errors.fatal("Inconsistent default translation failed with null on _, _, _." << (msgCtxt, msgid, msgidPlural))
       translation.substring(startIndex)
-    }.spy("Translation with _" << i18nLocale)
+    }
+
+    result
   }
 }
 
