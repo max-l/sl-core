@@ -64,7 +64,7 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
       if (startIndex >= translation.length)
         Errors.fatal("Inconsistent default translation failed with null on _, _, _." << (msgCtxt, msgid, msgidPlural))
       translation.substring(startIndex)
-    }
+    }.spy("Translation with _" << i18nLocale)
   }
 }
 
