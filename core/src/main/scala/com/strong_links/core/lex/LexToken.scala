@@ -5,7 +5,7 @@ import com.strong_links.core._
 class LexToken(val symbol: LexSymbol, val value: String, val lineNumber: Int,
                val startPos: Int, val endPos: Int, val startPosWithWhiteSpace: Int) {
 
-  override def toString = "!_ (_)" <<< (symbol.label, value)
+  override def toString = "_ (_)" << (symbol.label, value)
 
   def is(s: LexSymbol) = s == symbol
 

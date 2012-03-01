@@ -1,8 +1,8 @@
 package com.strong_links.core
 
-class I18nCatalog(val i18nConfig: I18nConfig) {
+import java.util.IdentityHashMap
 
-  private var cache = Map[String, I18nLocalization]()
+class I18nCatalog(val i18nConfig: I18nConfig) {
 
   def i18n[S <: String](msgid: S) =
     new PluggableI18n(this, null, msgid, msgid, Int.MaxValue)
@@ -28,11 +28,28 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
     case _                  => Errors.fatal("Invalid chain _." << chain)
   }
 
-  def getCachedLocalization(i18nLocale: I18nLocale) = cache.getOrElse(i18nLocale.key, {
-    val x = loadChainedLocalization(i18nConfig.getLocalizations(i18nLocale))
-    cache += (i18nLocale.key -> x)
-    x
-  })
+  // Fast identity map. We can use this as the locale key is always an intern string. 
+  private var cache = new IdentityHashMap[String, I18nLocalization](0)
+
+  // Try to load the localization from the cache. If it fails, create a new cache from the old one, 
+  // adding the new localization chain to it. This can be executed in multiple threads because the cache
+  // is actually immutable, we just replace the old by a new one.
+  def getCachedLocalization(i18nLocale: I18nLocale) = {
+    val result = cache.get(i18nLocale.key)
+    if (result == null) {
+      val newCache = new IdentityHashMap[String, I18nLocalization](cache.size + 1)
+      val i = cache.entrySet.iterator
+      while (i.hasNext) {
+        val x = i.next
+        newCache.put(x.getKey, x.getValue)
+      }
+      val i18nLocalization = loadChainedLocalization(i18nConfig.getLocalizations(i18nLocale))
+      newCache.put(i18nLocale.key, i18nLocalization)
+      cache = newCache
+      i18nLocalization
+    } else
+      result
+  }
 
   def translate(i18nPluggable: PluggableI18n, i18nLocale: I18nLocale) = {
 
@@ -57,14 +74,16 @@ class I18nCatalog(val i18nConfig: I18nConfig) {
       bad("Unexpected null translation.")
 
     // Handle the possible msgCtxt appearing at the start of the string, along with its separator character, '\0000'.
-    if (msgCtxt == null)
+    val result = if (msgCtxt == null)
       translation
     else {
       val startIndex = msgCtxt.length + 1
       if (startIndex >= translation.length)
         Errors.fatal("Inconsistent default translation failed with null on _, _, _." << (msgCtxt, msgid, msgidPlural))
       translation.substring(startIndex)
-    }.spy("Translation with _" << i18nLocale)
+    }
+
+    result
   }
 }
 
