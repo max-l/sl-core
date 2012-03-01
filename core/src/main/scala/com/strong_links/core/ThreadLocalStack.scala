@@ -14,6 +14,10 @@ class ThreadLocalStack[T] {
 
   def isDefined = value.get != null
 
+  def map[R](f: T => R): Option[R] =
+    if(isDefined) Some(f(get))
+    else None
+
   implicit def get = {
     if (value.get == null)
       Errors.fatal("Method 'using' has not been called; class is _." << this.getClass.getCanonicalName)

@@ -17,6 +17,8 @@ object Util {
   private lazy val sdf3 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ")
   private lazy val sdf4 = new SimpleDateFormat("HH:mm:ss:SSS")
 
+  def now = System.currentTimeMillis
+  
   def nowAsStringRaw: String = {
     sdf1.format(getTime)
   }
