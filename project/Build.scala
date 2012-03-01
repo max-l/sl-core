@@ -12,7 +12,7 @@ object Buildz extends Build {
   
   lazy val core = Project(
     id = "core",
-    base = file("core"),
+    base = file("."),
     settings = buildSettings 
   )
 }
