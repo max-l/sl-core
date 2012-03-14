@@ -18,7 +18,7 @@ object Util {
   private lazy val sdf4 = new SimpleDateFormat("HH:mm:ss:SSS")
 
   def now = System.currentTimeMillis
-  
+
   def nowAsStringRaw: String = {
     sdf1.format(getTime)
   }
@@ -131,7 +131,7 @@ object Util {
   }
 
   def filterOn[T](list: List[_])(implicit m: Manifest[T]) =
-    list.filter(m.erasure.isInstance(_)).map(_.asInstanceOf[T])
+    list.filter(m.erasure.isInstance).map(_.asInstanceOf[T])
 
   def md5 = new {
     private val f = MessageDigest.getInstance("MD5")
@@ -217,4 +217,12 @@ object Util {
     splitTwoTrimmed(s, del.toString)
 
   def sp(singular: String, plural: String, n: Int) = if (n == 1) singular else plural
+
+  trait FullyQualifiedName {
+    val fqn = {
+      def keep(s: String) = !s.isEmpty && (try { s.toInt; false } catch { case _ => true })
+      Util.split(getClass.getName.replace('$', '.'), '.').filter(keep).mkString(".")
+    }
+    lazy val fqnStrongHash = Util.strongHash(fqn)
+  }
 }

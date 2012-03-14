@@ -60,3 +60,12 @@ class UniqueIdentityMap[A <: AnyRef] extends com.strong_links.core.IdentityMap[A
   def put(key: A) = super.put(key)(key)
 }
 
+trait FullyQualifiedName {
+  val fqn = {
+    def keep(s: String) = !s.isEmpty && (try { s.toInt; false } catch { case _ => true })
+    Util.split(getClass.getName.replace('$', '.'), '.').filter(keep).mkString(".")
+  }
+  lazy val fqnStrongHash = Util.strongHash(fqn)
+}
+
+
